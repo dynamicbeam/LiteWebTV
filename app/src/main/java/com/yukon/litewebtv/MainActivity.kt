@@ -22,7 +22,14 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.dp
+import kotlin.math.abs
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.yukon.litewebtv.engine.LiteWebViewEngine
 import com.yukon.litewebtv.ui.components.ChannelSidebar
@@ -53,6 +60,8 @@ class MainActivity : ComponentActivity() {
                 val context = LocalContext.current
 
                 var backPressedTime by remember { mutableLongStateOf(0L) }
+                val density = LocalDensity.current
+                val touchSlop = with(density) { 48.dp.toPx() }
 
                 LaunchedEffect(Unit) {
                     rootFocusRequester.requestFocus()
@@ -113,6 +122,39 @@ class MainActivity : ComponentActivity() {
                                     else -> false
                                 }
                             } else false
+                        }
+                        .pointerInput(Unit, PointerEventPass.Initial) {
+                            awaitEachGesture {
+                                val down = awaitFirstDown(requireUnconsumed = false)
+                                var triggered = false
+
+                                while (true) {
+                                    val event = awaitPointerEvent()
+                                    val change = event.changes.firstOrNull { it.id == down.id } ?: break
+
+                                    if (!triggered && change.pressed) {
+                                        val dx = change.position.x - down.position.x
+                                        val dy = change.position.y - down.position.y
+
+                                        if (abs(dx) > touchSlop || abs(dy) > touchSlop) {
+                                            triggered = true
+                                            if (abs(dx) > abs(dy)) {
+                                                if (dx > 0) viewModel.toggleProgramSidebar(show = true)
+                                                else viewModel.toggleChannelSidebar(show = true)
+                                            } else {
+                                                if (dy > 0) viewModel.switchChannelOffset(1)
+                                                else viewModel.switchChannelOffset(-1)
+                                            }
+                                        }
+                                    }
+
+                                    if (triggered) {
+                                        event.changes.forEach { it.consume() }
+                                    }
+
+                                    if (!change.pressed) break
+                                }
+                            }
                         }
                 ) {
                     LiteWebViewEngine(

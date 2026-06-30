@@ -7,7 +7,7 @@ on:
       - 'v*'
 
 permissions:
-  contents: write  # 需要这个权限才能创建 release
+  contents: write
 
 jobs:
   build-and-release:
@@ -33,9 +33,14 @@ jobs:
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
 
-      - name: Build & Sign Release APK
+      - name: Decode Keystore
         env:
           SIGNING_KEY: ${{ secrets.SIGNING_KEY }}
+        run: |
+          echo "$SIGNING_KEY" | base64 -d > app/keystore.jks
+
+      - name: Build & Sign Release APK
+        env:
           KEY_STORE_PASSWORD: ${{ secrets.KEY_STORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}

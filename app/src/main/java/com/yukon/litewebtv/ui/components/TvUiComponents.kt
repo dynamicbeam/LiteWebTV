@@ -180,6 +180,7 @@ fun ChannelSidebar(
 ) {
     val listState = rememberLazyListState()
     val targetFocusRequester = remember { FocusRequester() }
+    val sidebarFocusRequester = remember { FocusRequester() }
 
     val targetIndex = remember(channels, currentChannelName) {
         channels.indexOfFirst { it.name == currentChannelName }.coerceAtLeast(0)
@@ -189,8 +190,9 @@ fun ChannelSidebar(
         if (isVisible && channels.isNotEmpty()) {
             val scrollIndex = (targetIndex - 3).coerceAtLeast(0)
             listState.scrollToItem(scrollIndex)
-            delay(150)
+            delay(350)
             try { targetFocusRequester.requestFocus() } catch (e: Exception) {}
+            try { sidebarFocusRequester.requestFocus() } catch (e: Exception) {}
         }
     }
 
@@ -204,6 +206,8 @@ fun ChannelSidebar(
                 .fillMaxHeight()
                 .width(300.dp)
                 .background(DarkFrostedBackground)
+                .focusRequester(sidebarFocusRequester)
+                .focusable()
         ) {
             Column(modifier = Modifier.fillMaxSize()) {
                 Text(
@@ -259,6 +263,7 @@ fun ProgramSidebar(
 ) {
     val listState = rememberLazyListState()
     val targetFocusRequester = remember { FocusRequester() }
+    val sidebarFocusRequester = remember { FocusRequester() }
 
     val targetIndex = remember(programs) {
         programs.indexOfFirst { it.isPlaying }.coerceAtLeast(0)
@@ -268,8 +273,9 @@ fun ProgramSidebar(
         if (isVisible && programs.isNotEmpty()) {
             val scrollIndex = (targetIndex - 3).coerceAtLeast(0)
             listState.scrollToItem(scrollIndex)
-            delay(150)
+            delay(350)
             try { targetFocusRequester.requestFocus() } catch (e: Exception) {}
+            try { sidebarFocusRequester.requestFocus() } catch (e: Exception) {}
         }
     }
 
@@ -279,7 +285,7 @@ fun ProgramSidebar(
         exit = slideOutHorizontally(targetOffsetX = { it }, animationSpec = tween(300)),
         modifier = Modifier.fillMaxWidth()
     ) {
-        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.CenterEnd) {
+        Box(modifier = Modifier.fillMaxSize().focusRequester(sidebarFocusRequester).focusable(), contentAlignment = Alignment.CenterEnd) {
             Box(
                 modifier = Modifier
                     .fillMaxHeight()

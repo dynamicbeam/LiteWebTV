@@ -10,7 +10,7 @@ android {
 
     defaultConfig {
         applicationId = "com.yukon.litewebtv"
-        minSdk = 24
+        minSdk = 23
         targetSdk = 36
 
         // 【核心修改 1】：更新为 2.0 版本

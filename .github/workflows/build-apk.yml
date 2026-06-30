@@ -37,7 +37,7 @@ jobs:
         env:
           SIGNING_KEY: ${{ secrets.SIGNING_KEY }}
         run: |
-          echo "$SIGNING_KEY" | base64 -d -i > app/keystore.jks
+          echo "$SIGNING_KEY" | base64 -d > app/keystore.jks
 
       - name: Build & Sign Release APK
         env:

@@ -71,27 +71,91 @@ fun LiteWebViewEngine(
 
                     override fun onPageFinished(view: WebView?, url: String?) {
                         super.onPageFinished(view, url)
-                        // （此处保持之前的注入代码完全不变，为节省空间简略显示）
+                        // 只注入主页面，忽略 iframe
+                        if (url == null || !url.contains("yangshipin.cn/tv/home")) return
                         val script = """
                             (function() {
+                                if (window.__LiteWebTV_injected) return;
+                                window.__LiteWebTV_injected = true;
                                 try {
-                                    var css = "::-webkit-scrollbar { display: none !important; width: 0 !important; height: 0 !important; } " +
-                                              ".header-fixed, .max-footer, .tv-main-con-r, .tv-zhan, .public { display: none !important; opacity: 0 !important; pointer-events: none !important; } " +
-                                              "html, body, #app, .comPadding, .tv-home, .tv-home-list, .tv, .tv-main, .tv-main-con, .tv-main-con-l { margin: 0 !important; padding: 0 !important; width: 100vw !important; height: 100vh !important; max-width: 100vw !important; overflow: hidden !important; background-color: #000 !important; } " +
-                                              ".tv-main-con-l-vid, .c-container, .video-con { position: fixed !important; top: 0 !important; left: 0 !important; width: 100vw !important; height: 100vh !important; z-index: 2147483647 !important; margin: 0 !important; padding: 0 !important; background-color: #000 !important; } " +
-                                              "video { width: 100vw !important; height: 100vh !important; object-fit: contain !important; }";
-                                    var style = document.createElement('style'); style.type = 'text/css'; style.innerHTML = css; document.head.appendChild(style);
+                                    var css = "::-webkit-scrollbar { display: none !important; } " +
+                                              "html, body, #app, .tv, .tv-main, .tv-main-con, .tv-main-con-l { margin: 0 !important; padding: 0 !important; width: 100vw !important; height: 100vh !important; max-width: 100vw !important; overflow: hidden !important; background: #000 !important; } " +
+                                              ".tv-main-con-l-vid, video { width: 100vw !important; height: 100vh !important; object-fit: contain !important; background: #000 !important; }";
+                                    var style = document.createElement('style'); style.textContent = css; document.head.appendChild(style);
                                     window.LiteWebTV = {
                                         channelNodes: [],
-                                        init: function() { this.setupVideoListener(); this.startAutoOptimizer(); setTimeout(() => this.extractFreeChannels(), 2000); setTimeout(() => this.extractPrograms(), 2000); },
-                                        setupVideoListener: function() { document.addEventListener('playing', function(e) { if(e.target && e.target.tagName === 'VIDEO') { if(window.TVBridge) window.TVBridge.notifyVideoPlaying(); } }, true); },
-                                        startAutoOptimizer: function() { setInterval(() => { let muteBtn = document.querySelector('.voice.off'); if (muteBtn && muteBtn.style.display !== 'none') { muteBtn.click(); } let qualityItems = document.querySelectorAll('.bei-list .item'); qualityItems.forEach(item => { if(item.innerText.includes('1080P') && !item.classList.contains('active')) { item.click(); } }); }, 1000); },
-                                        extractFreeChannels: function() { let results = []; this.channelNodes = []; let nodes = document.querySelectorAll('.tv-main-con-r-list-left-imga, .tv-main-con-r-list-left-imgb'); nodes.forEach((node) => { let text = node.innerText || ""; if (text.indexOf('VIP') === -1 && text.indexOf('限免') === -1) { let channelName = text.replace('(VIP)', '').replace('(限免)', '').trim(); channelName = channelName.split('\n')[0].trim(); this.channelNodes.push(node); results.push({ name: channelName, domIndex: this.channelNodes.length - 1 }); } }); if(window.TVBridge) window.TVBridge.sendChannelList(JSON.stringify(results)); },
-                                        switchChannel: function(domIndex) { if(this.channelNodes[domIndex]) { this.channelNodes[domIndex].click(); } },
-                                        extractPrograms: function() { let results = []; let items = document.querySelectorAll('.tv-zhan-list-b-r-item'); items.forEach(item => { let isNow = item.classList.contains('now'); let timeNode = item.querySelector('div:first-child'); let titleNode = item.querySelector('.overflow-1'); if (timeNode && titleNode) { results.push({ time: timeNode.innerText, title: titleNode.innerText, isPlaying: isNow }); } }); if(window.TVBridge) window.TVBridge.sendProgramList(JSON.stringify(results)); }
+                                        init: function() {
+                                            this.setupVideoListener();
+                                            this.startAutoOptimizer();
+                                            this.scheduleExtract();
+                                            if (!window.__videoTimeout) {
+                                                window.__videoTimeout = setTimeout(function() {
+                                                    if (window.TVBridge) window.TVBridge.notifyVideoPlaying();
+                                                }, 15000);
+                                            }
+                                        },
+                                        setupVideoListener: function() {
+                                            document.addEventListener('playing', function(e) {
+                                                if (e.target && e.target.tagName === 'VIDEO') {
+                                                    clearTimeout(window.__videoTimeout);
+                                                    if (window.TVBridge) window.TVBridge.notifyVideoPlaying();
+                                                }
+                                            }, true);
+                                        },
+                                        startAutoOptimizer: function() {
+                                            setInterval(function() {
+                                                var btn = document.querySelector('.voice.off');
+                                                if (btn && btn.style.display !== 'none') btn.click();
+                                                document.querySelectorAll('.bei-list .item').forEach(function(item) {
+                                                    if (item.innerText.includes('1080P') && !item.classList.contains('active')) item.click();
+                                                });
+                                            }, 3000);
+                                        },
+                                        scheduleExtract: function() {
+                                            var retries = 0;
+                                            var maxRetries = 10;
+                                            function tryExtract() {
+                                                if (window.TVBridge) {
+                                                    window.LiteWebTV.extractFreeChannels();
+                                                    window.LiteWebTV.extractPrograms();
+                                                }
+                                                if (++retries < maxRetries) setTimeout(tryExtract, 1000);
+                                            }
+                                            setTimeout(tryExtract, 1500);
+                                        },
+                                        extractFreeChannels: function() {
+                                            if (document.querySelectorAll('.tv-main-con-r-list-left-imga').length === 0) return;
+                                            var results = [];
+                                            this.channelNodes = [];
+                                            document.querySelectorAll('.tv-main-con-r-list-left-imga, .tv-main-con-r-list-left-imgb').forEach(function(node) {
+                                                var text = (node.innerText || '').trim();
+                                                if (text.indexOf('VIP') === -1 && text.indexOf('限免') === -1) {
+                                                    var name = text.replace(/\(VIP\)|\(限免\)/g, '').split('\n')[0].trim();
+                                                    if (name) {
+                                                        this.channelNodes.push(node);
+                                                        results.push({ name: name, domIndex: this.channelNodes.length - 1 });
+                                                    }
+                                                }
+                                            }, this);
+                                            if (results.length > 0 && window.TVBridge) window.TVBridge.sendChannelList(JSON.stringify(results));
+                                        },
+                                        switchChannel: function(domIndex) {
+                                            if (this.channelNodes[domIndex]) this.channelNodes[domIndex].click();
+                                        },
+                                        extractPrograms: function() {
+                                            var items = document.querySelectorAll('.tv-zhan-list-b-r-item');
+                                            if (items.length === 0) return;
+                                            var results = [];
+                                            items.forEach(function(item) {
+                                                var timeNode = item.querySelector('div:first-child');
+                                                var titleNode = item.querySelector('.overflow-1');
+                                                if (timeNode && titleNode) results.push({ time: timeNode.innerText, title: titleNode.innerText, isPlaying: item.classList.contains('now') });
+                                            });
+                                            if (results.length > 0 && window.TVBridge) window.TVBridge.sendProgramList(JSON.stringify(results));
+                                        }
                                     };
                                     window.LiteWebTV.init();
-                                } catch (e) { console.error("LiteWebTV JS Injection Error: " + e.message); }
+                                } catch (e) { console.error("LiteWebTV:", e.message); }
                             })();
                         """.trimIndent()
                         view?.evaluateJavascript(script, null)

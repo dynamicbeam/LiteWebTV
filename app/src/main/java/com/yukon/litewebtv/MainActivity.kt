@@ -139,12 +139,12 @@ class MainActivity : ComponentActivity() {
                                         if (abs(dx) > touchSlop || abs(dy) > touchSlop) {
                                             triggered = true
                                             if (abs(dx) > abs(dy)) {
-                                                if (dx > 0 && !showProgramSidebar) viewModel.toggleProgramSidebar(show = true)
-                                                else if (dx < 0 && !showChannelSidebar) viewModel.toggleChannelSidebar(show = true)
+                                                if (dx > 0 && !showChannelSidebar) viewModel.toggleChannelSidebar(show = true)
+                                                else if (dx < 0 && !showProgramSidebar) viewModel.toggleProgramSidebar(show = true)
                                             } else {
                                                 if (!showChannelSidebar && !showProgramSidebar) {
-                                                    if (dy > 0) viewModel.switchChannelOffset(1)
-                                                    else viewModel.switchChannelOffset(-1)
+                                                    if (dy > 0) viewModel.switchChannelOffset(-1)
+                                                    else viewModel.switchChannelOffset(1)
                                                 }
                                             }
                                         }

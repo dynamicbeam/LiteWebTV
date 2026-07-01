@@ -159,14 +159,6 @@ fun LoadingCurtain(
                 )
             }
 
-            Text(
-                text = "开源仓库Github/Gitee：YukonKong/LiteWebTV",
-                fontSize = 12.sp,
-                color = TextHint,
-                modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .padding(end = 32.dp, bottom = 24.dp)
-            )
         }
     }
 }

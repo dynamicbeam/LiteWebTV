@@ -50,7 +50,22 @@ class MainViewModel : ViewModel() {
     private var osdJob: Job? = null
     private var pendingOsdShow = false
 
+    private var loadingTimeoutJob: Job? = null
+
+    private fun startLoadingTimeout() {
+        loadingTimeoutJob?.cancel()
+        loadingTimeoutJob = viewModelScope.launch {
+            delay(20000)
+            _isLoading.value = false
+        }
+    }
+
+    init {
+        startLoadingTimeout()
+    }
+
     fun setVideoReady() {
+        loadingTimeoutJob?.cancel()
         _isLoading.value = false
         // 【核心修改】：视频加载完毕出画面后，主动向网页索要最新的节目单，准备展示 OSD
         pendingOsdShow = true
@@ -148,6 +163,7 @@ class MainViewModel : ViewModel() {
         _isLoading.value = true
         _showChannelSidebar.value = false
 
+        startLoadingTimeout()
         _jsCommand.tryEmit("window.LiteWebTV.switchChannel(${channel.domIndex});")
     }
 }

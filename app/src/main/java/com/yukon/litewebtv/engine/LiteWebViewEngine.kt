@@ -75,84 +75,23 @@ fun LiteWebViewEngine(
                         val script = """
                             (function() {
                                 try {
-                                    var css = [
-                                        "::-webkit-scrollbar { display: none !important; width: 0 !important; height: 0 !important; }",
-                                        ".header-fixed, .max-footer, .tv-main-con-r, .tv-zhan, .public { display: none !important; opacity: 0 !important; pointer-events: none !important; }",
-                                        "html, body, #app, .comPadding, .tv-home, .tv-home-list, .tv, .tv-main, .tv-main-con, .tv-main-con-l { margin: 0 !important; padding: 0 !important; width: 100vw !important; height: 100vh !important; max-width: 100vw !important; overflow: hidden !important; background-color: #000 !important; }",
-                                        ".tv-main-con-l-vid, .c-container, .video-con { position: fixed !important; top: 0 !important; left: 0 !important; width: 100vw !important; height: 100vh !important; z-index: 2147483647 !important; margin: 0 !important; padding: 0 !important; background-color: #000 !important; }",
-                                        "video { width: 100vw !important; height: 100vh !important; object-fit: contain !important; }"
-                                    ].join(' ');
-                                    var style = document.createElement('style');
-                                    style.type = 'text/css';
-                                    style.innerHTML = css;
-                                    document.head.appendChild(style);
+                                    var css = "::-webkit-scrollbar { display: none !important; width: 0 !important; height: 0 !important; } " +
+                                              ".header-fixed, .max-footer, .tv-main-con-r, .tv-zhan, .public { display: none !important; opacity: 0 !important; pointer-events: none !important; } " +
+                                              "html, body, #app, .comPadding, .tv-home, .tv-home-list, .tv, .tv-main, .tv-main-con, .tv-main-con-l { margin: 0 !important; padding: 0 !important; width: 100vw !important; height: 100vh !important; max-width: 100vw !important; overflow: hidden !important; background-color: #000 !important; } " +
+                                              ".tv-main-con-l-vid, .c-container, .video-con { position: fixed !important; top: 0 !important; left: 0 !important; width: 100vw !important; height: 100vh !important; z-index: 2147483647 !important; margin: 0 !important; padding: 0 !important; background-color: #000 !important; } " +
+                                              "video { width: 100vw !important; height: 100vh !important; object-fit: contain !important; }";
+                                    var style = document.createElement('style'); style.type = 'text/css'; style.innerHTML = css; document.head.appendChild(style);
                                     window.LiteWebTV = {
                                         channelNodes: [],
-                                        init: function() {
-                                            this.setupVideoListener();
-                                            this.startAutoOptimizer();
-                                            setTimeout(() => this.extractFreeChannels(), 2000);
-                                            setTimeout(() => this.extractPrograms(), 2000);
-                                        },
-                                        setupVideoListener: function() {
-                                            document.addEventListener('playing', function(e) {
-                                                if (e.target && e.target.tagName === 'VIDEO') {
-                                                    if (window.TVBridge) window.TVBridge.notifyVideoPlaying();
-                                                }
-                                            }, true);
-                                        },
-                                        startAutoOptimizer: function() {
-                                            setInterval(() => {
-                                                var muteBtn = document.querySelector('.voice.off');
-                                                if (muteBtn && muteBtn.style.display !== 'none') {
-                                                    muteBtn.click();
-                                                }
-                                                var qualityItems = document.querySelectorAll('.bei-list .item');
-                                                qualityItems.forEach(function(item) {
-                                                    if (item.innerText.includes('1080P') && !item.classList.contains('active')) {
-                                                        item.click();
-                                                    }
-                                                });
-                                            }, 3000);
-                                        },
-                                        extractFreeChannels: function() {
-                                            var results = [];
-                                            this.channelNodes = [];
-                                            var nodes = document.querySelectorAll('.tv-main-con-r-list-left-imga, .tv-main-con-r-list-left-imgb');
-                                            nodes.forEach(function(node) {
-                                                var text = node.innerText || "";
-                                                if (text.indexOf('VIP') === -1 && text.indexOf('限免') === -1) {
-                                                    var channelName = text.replace('(VIP)', '').replace('(限免)', '').trim();
-                                                    channelName = channelName.split('\n')[0].trim();
-                                                    this.channelNodes.push(node);
-                                                    results.push({ name: channelName, domIndex: this.channelNodes.length - 1 });
-                                                }
-                                            });
-                                            if (window.TVBridge) window.TVBridge.sendChannelList(JSON.stringify(results));
-                                        },
-                                        switchChannel: function(domIndex) {
-                                            if (this.channelNodes[domIndex]) {
-                                                this.channelNodes[domIndex].click();
-                                            }
-                                        },
-                                        extractPrograms: function() {
-                                            var results = [];
-                                            var items = document.querySelectorAll('.tv-zhan-list-b-r-item');
-                                            items.forEach(function(item) {
-                                                var isNow = item.classList.contains('now');
-                                                var timeNode = item.querySelector('div:first-child');
-                                                var titleNode = item.querySelector('.overflow-1');
-                                                if (timeNode && titleNode) {
-                                                    results.push({ time: timeNode.innerText, title: titleNode.innerText, isPlaying: isNow });
-                                                }
-                                            });
-                                            if (window.TVBridge) window.TVBridge.sendProgramList(JSON.stringify(results));
-                                        }
+                                        init: function() { this.setupVideoListener(); this.startAutoOptimizer(); setTimeout(() => this.extractFreeChannels(), 2000); setTimeout(() => this.extractPrograms(), 2000); },
+                                        setupVideoListener: function() { document.addEventListener('playing', function(e) { if(e.target && e.target.tagName === 'VIDEO') { if(window.TVBridge) window.TVBridge.notifyVideoPlaying(); } }, true); },
+                                        startAutoOptimizer: function() { setInterval(() => { let muteBtn = document.querySelector('.voice.off'); if (muteBtn && muteBtn.style.display !== 'none') { muteBtn.click(); } let qualityItems = document.querySelectorAll('.bei-list .item'); qualityItems.forEach(item => { if(item.innerText.includes('1080P') && !item.classList.contains('active')) { item.click(); } }); }, 3000); },
+                                        extractFreeChannels: function() { let results = []; this.channelNodes = []; let nodes = document.querySelectorAll('.tv-main-con-r-list-left-imga, .tv-main-con-r-list-left-imgb'); nodes.forEach((node) => { let text = node.innerText || ""; if (text.indexOf('VIP') === -1 && text.indexOf('限免') === -1) { let channelName = text.replace('(VIP)', '').replace('(限免)', '').trim(); channelName = channelName.split('\n')[0].trim(); this.channelNodes.push(node); results.push({ name: channelName, domIndex: this.channelNodes.length - 1 }); } }); if(window.TVBridge) window.TVBridge.sendChannelList(JSON.stringify(results)); },
+                                        switchChannel: function(domIndex) { if(this.channelNodes[domIndex]) { this.channelNodes[domIndex].click(); } },
+                                        extractPrograms: function() { let results = []; let items = document.querySelectorAll('.tv-zhan-list-b-r-item'); items.forEach(item => { let isNow = item.classList.contains('now'); let timeNode = item.querySelector('div:first-child'); let titleNode = item.querySelector('.overflow-1'); if (timeNode && titleNode) { results.push({ time: timeNode.innerText, title: titleNode.innerText, isPlaying: isNow }); } }); if(window.TVBridge) window.TVBridge.sendProgramList(JSON.stringify(results)); }
                                     };
                                     window.LiteWebTV.init();
-                                } catch (e) {
-                                    console.error("LiteWebTV JS Injection Error: " + e.message);
-                                }
+                                } catch (e) { console.error("LiteWebTV JS Injection Error: " + e.message); }
                             })();
                         """.trimIndent()
                         view?.evaluateJavascript(script, null)

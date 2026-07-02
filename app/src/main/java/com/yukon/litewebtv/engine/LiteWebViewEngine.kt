@@ -113,7 +113,7 @@ fun LiteWebViewEngine(
                                                         item.click();
                                                     }
                                                 });
-                                            }, 1000);
+                                            }, 3000);
                                         },
                                         extractFreeChannels: function() {
                                             var results = [];

@@ -90,7 +90,6 @@ fun LiteWebViewEngine(
 
                                         init: function() {
                                             this.setupVideoListener();
-                                            this.startAutoOptimizer();
                                             setTimeout(() => this.extractFreeChannels(), 2000);
                                             setTimeout(() => this.extractPrograms(), 2000);
                                         },
@@ -103,20 +102,6 @@ fun LiteWebViewEngine(
                                             }, true);
                                         },
 
-                                        startAutoOptimizer: function() {
-                                            setInterval(() => {
-                                                let muteBtn = document.querySelector('.voice.off');
-                                                if (muteBtn && muteBtn.style.display !== 'none') {
-                                                    muteBtn.click();
-                                                }
-                                                let qualityItems = document.querySelectorAll('.bei-list .item');
-                                                qualityItems.forEach(item => {
-                                                    if (item.innerText.includes('1080P') && !item.classList.contains('active')) {
-                                                        item.click();
-                                                    }
-                                                });
-                                            }, 3000);
-                                        },
 
                                         extractFreeChannels: function() {
                                             let results = [];

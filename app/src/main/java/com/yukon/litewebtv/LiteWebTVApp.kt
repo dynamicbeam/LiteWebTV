@@ -1,50 +1,112 @@
 package com.yukon.litewebtv
 
 import android.app.Application
+import android.content.Context
+import android.os.Handler
+import android.os.Looper
 import android.util.Log
 import com.tencent.smtt.export.external.TbsCoreSettings
+import com.tencent.smtt.sdk.ProgressListener
 import com.tencent.smtt.sdk.QbSdk
+import com.tencent.smtt.sdk.TbsFramework
+import com.tencent.smtt.sdk.core.dynamicinstall.DynamicInstallManager
+import java.io.File
+import java.io.FileOutputStream
+import java.io.IOException
 
-/**
- * 在 Application.onCreate 里尽早预初始化 X5 内核。
- *
- * 关键点：
- * 1. QbSdk.initX5Environment 只是"预加载"，不保证内核一定加载成功；
- *    如果本机没有 X5 内核、下载失败、或架构不支持，WebView 会自动无感回落到系统内核，
- *    LiteWebViewEngine 里不需要写任何 fallback 逻辑。
- * 2. initTbsSettings 开启 dex2oat 优化，避免内核首次加载时 ANR。
- */
 class LiteWebTVApp : Application() {
+    private var mContext: Context? = null
 
     override fun onCreate() {
         super.onCreate()
-        initX5()
+        mContext = this
+        initPublicTBS()
     }
 
-    private fun initX5() {
-        val settings = HashMap<String, Any>()
-        settings[TbsCoreSettings.TBS_SETTINGS_USE_SPEEDY_CLASSLOADER] = true
-        settings[TbsCoreSettings.TBS_SETTINGS_USE_DEXLOADER_SERVICE] = true
-        QbSdk.initTbsSettings(settings)
+    private val preInitCallback = object : QbSdk.PreInitCallback {
+        override fun onCoreInitFinished() {
+            Log.i(TAG, "onCoreInitFinished: X5内核初始化成功")
+        }
 
-        // 电视盒子类设备大多常年联网/流量不敏感，允许非 WiFi 环境下下发内核，
-        // 否则很多盒子首次开机会一直用系统内核，等不到 X5 生效
-        QbSdk.setDownloadWithoutWifi(true)
+        override fun onViewInitFinished(isX5Code: Boolean) {
+            Log.i(TAG, "是否使用X5内核: $isX5Code")
+        }
+    }
 
-        QbSdk.initX5Environment(this, object : QbSdk.PreInitCallback {
-            override fun onCoreInitFinished() {
-                Log.d(TAG, "X5内核初始化流程结束")
+    private fun initPublicTBS() {
+        val map = HashMap<String, Any>()
+        map[TbsCoreSettings.MULTI_PROCESS_ENABLE] = 1
+        QbSdk.initTbsSettings(map)
+
+        val configFile = getConfigFile()
+        if (configFile != null && configFile.exists()) {
+            Log.i(TAG, "拿到配置文件: ${configFile.absolutePath}")
+            downloadConfigTBS(mContext!!, configFile)
+        } else {
+            Log.w(TAG, "未拿到配置文件，X5内核无法动态安装")
+        }
+    }
+
+    private fun downloadConfigTBS(context: Context, configFile: File) {
+        TbsFramework.setUp(context, configFile)
+        val manager = DynamicInstallManager(context)
+        manager.registerListener(object : ProgressListener {
+            override fun onProgress(progress: Int) {
+                Log.i(TAG, "X5内核下载进度: $progress")
+                Handler(Looper.getMainLooper()).post {
+                    onDownloadProgress?.invoke(progress)
+                }
             }
 
-            override fun onViewInitFinished(isX5Core: Boolean) {
-                // isX5Core = true 表示本次 WebView 用的是 X5 内核；
-                // false 表示回落到系统内核（不是失败，是正常的降级路径）
-                Log.d(TAG, if (isX5Core) "X5内核加载成功" else "X5内核未命中，已使用系统内核")
+            override fun onFinished() {
+                Log.i(TAG, "X5内核下载完成，开始预初始化")
+                Handler(Looper.getMainLooper()).post {
+                    onDownloadFinished?.invoke()
+                }
+                QbSdk.preInit(mContext, preInitCallback)
+            }
+
+            override fun onFailed(code: Int, msg: String?) {
+                Log.e(TAG, "X5内核下载失败 code=$code, msg=$msg")
+                Handler(Looper.getMainLooper()).post {
+                    onDownloadFailed?.invoke(code, msg)
+                }
             }
         })
+        manager.startInstall()
+    }
+
+    private fun getConfigFile(): File? {
+        try {
+            val inputStream = assets.open(CONFIG_PATH)
+            val inputFileName = CONFIG_PATH.substringAfter("/")
+            return saveInputStreamToFile(inputStream, inputFileName)
+        } catch (e: Exception) {
+            Log.e(TAG, "读取配置文件失败", e)
+            return null
+        }
+    }
+
+    private fun saveInputStreamToFile(inputStream: java.io.InputStream, fileName: String): File {
+        val file = File(filesDir, fileName)
+        FileOutputStream(file).use { out ->
+            val buffer = ByteArray(1024)
+            var bytesRead: Int
+            while (inputStream.read(buffer).also { bytesRead = it } != -1) {
+                out.write(buffer, 0, bytesRead)
+            }
+        }
+        inputStream.close()
+        Log.i(TAG, "配置文件已保存到: ${file.absolutePath}")
+        return file
     }
 
     companion object {
         private const val TAG = "LiteWebTV-X5"
+        private const val CONFIG_PATH = "tbs/config.tbs"
+
+        var onDownloadProgress: ((Int) -> Unit)? = null
+        var onDownloadFinished: (() -> Unit)? = null
+        var onDownloadFailed: ((Int, String?) -> Unit)? = null
     }
 }

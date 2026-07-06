@@ -19,3 +19,7 @@
 # If you keep the line number information, uncomment this to
 # hide the original source file name.
 #-renamesourcefileattribute SourceFile
+
+# GeckoView 传递依赖引入的 SnakeYAML 引用了 Android 上不存在的 java.beans 包
+-dontwarn java.beans.**
+-dontwarn org.yaml.snakeyaml.**

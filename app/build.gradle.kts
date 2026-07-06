@@ -80,8 +80,8 @@ dependencies {
 
     // 腾讯 X5 (TBS) 内核，替换系统 WebView，解决老旧机型内核兼容性问题
     // 走 mavenCentral，settings.gradle.kts 里已经有 mavenCentral()，不用额外配仓库
-    implementation("com.tencent.tbs:tbssdk:44286")
-
+//    implementation("com.tencent.tbs:tbssdk:44286")
+    implementation(fileTree("libs") { include("*.aar") })
     // 以下为测试依赖，它们只在开发期有效，打包 release 时会自动忽略，不会增加软件体积
     testImplementation("junit:junit:4.13.2")
     androidTestImplementation("androidx.test.ext:junit:1.3.0")

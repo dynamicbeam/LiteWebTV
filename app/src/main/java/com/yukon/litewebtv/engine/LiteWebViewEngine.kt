@@ -15,7 +15,6 @@ import kotlinx.coroutines.flow.SharedFlow
 import org.mozilla.geckoview.AllowOrDeny
 import org.mozilla.geckoview.GeckoResult
 import org.mozilla.geckoview.GeckoRuntime
-import org.mozilla.geckoview.GeckoRuntimeSettings
 import org.mozilla.geckoview.GeckoSession
 import org.mozilla.geckoview.GeckoView
 
@@ -37,10 +36,7 @@ fun LiteWebViewEngine(
     }
 
     val runtime = remember {
-        val settings = GeckoRuntimeSettings.Builder()
-            .useMultiprocess(false)
-            .build()
-        GeckoRuntime.create(context, settings)
+        GeckoRuntime.create(context)
     }
 
     LaunchedEffect(session) {

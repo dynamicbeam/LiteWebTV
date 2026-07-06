@@ -19,6 +19,10 @@ android {
         minSdk = 23
         targetSdk = 36
 
+        ndk {
+            abiFilters += listOf("armeabi-v7a")
+        }
+
         // 【核心修改 1】：更新为 2.0 版本
         versionCode = 2
         versionName = "2.0"
@@ -53,6 +57,12 @@ android {
     }
     buildFeatures {
         compose = true
+    }
+
+    packaging {
+        jniLibs {
+            useLegacyPackaging = true
+        }
     }
 }
 

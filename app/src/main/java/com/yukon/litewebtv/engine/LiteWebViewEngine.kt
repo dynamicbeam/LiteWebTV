@@ -3,13 +3,8 @@ package com.yukon.litewebtv.engine
 import android.annotation.SuppressLint
 import android.util.Log
 import android.view.ViewGroup
-import android.webkit.WebChromeClient
-import android.webkit.WebResourceRequest
-import android.webkit.WebResourceResponse
-import android.webkit.WebSettings
-import android.webkit.WebView
-import android.webkit.WebViewClient
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -17,6 +12,15 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import com.tencent.smtt.export.external.interfaces.WebResourceRequest
+import com.tencent.smtt.export.external.interfaces.WebResourceResponse
+import com.tencent.smtt.sdk.WebChromeClient
+import com.tencent.smtt.sdk.WebSettings
+import com.tencent.smtt.sdk.WebView
+import com.tencent.smtt.sdk.WebViewClient
 import kotlinx.coroutines.flow.SharedFlow
 import java.io.ByteArrayInputStream
 
@@ -38,6 +42,38 @@ fun LiteWebViewEngine(
         jsCommandFlow.collect { command ->
             Log.d("LiteWebViewEngine", "执行注入指令: $command")
             webViewInstance?.evaluateJavascript(command, null)
+        }
+    }
+
+    // 【X5 接入新增】把 Activity 生命周期同步给 X5 WebView。
+    // X5 内核在锁屏/解锁时容易出现 GL 上下文丢失导致画面黑屏，
+    // 官方建议做法是在 onPause/onResume 时主动调用 webView 对应方法，
+    // 而不是让 WebView 自己去猜 Activity 状态。
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            when (event) {
+                Lifecycle.Event.ON_RESUME -> {
+                    webViewInstance?.onResume()
+                    webViewInstance?.resumeTimers()
+                }
+                Lifecycle.Event.ON_PAUSE -> {
+                    webViewInstance?.onPause()
+                    webViewInstance?.pauseTimers()
+                }
+                else -> {}
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+            // 及时释放内核资源，避免 TV 端长时间挂后台造成的内存/GL 资源泄漏
+            webViewInstance?.apply {
+                stopLoading()
+                clearHistory()
+                removeAllViews()
+                destroy()
+            }
         }
     }
 
@@ -80,70 +116,18 @@ fun LiteWebViewEngine(
                                               "html, body, #app, .comPadding, .tv-home, .tv-home-list, .tv, .tv-main, .tv-main-con, .tv-main-con-l { margin: 0 !important; padding: 0 !important; width: 100vw !important; height: 100vh !important; max-width: 100vw !important; overflow: hidden !important; background-color: #000 !important; } " +
                                               ".tv-main-con-l-vid, .c-container, .video-con { position: fixed !important; top: 0 !important; left: 0 !important; width: 100vw !important; height: 100vh !important; z-index: 2147483647 !important; margin: 0 !important; padding: 0 !important; background-color: #000 !important; } " +
                                               "video { width: 100vw !important; height: 100vh !important; object-fit: contain !important; }";
-                                    var style = document.createElement('style');
-                                    style.type = 'text/css';
-                                    style.innerHTML = css;
-                                    document.head.appendChild(style);
-
+                                    var style = document.createElement('style'); style.type = 'text/css'; style.innerHTML = css; document.head.appendChild(style);
                                     window.LiteWebTV = {
                                         channelNodes: [],
-
-                                        init: function() {
-                                            this.setupVideoListener();
-                                            setTimeout(() => this.extractFreeChannels(), 2000);
-                                            setTimeout(() => this.extractPrograms(), 2000);
-                                        },
-
-                                        setupVideoListener: function() {
-                                            document.addEventListener('playing', function(e) {
-                                                if (e.target && e.target.tagName === 'VIDEO') {
-                                                    if (window.TVBridge) window.TVBridge.notifyVideoPlaying();
-                                                }
-                                            }, true);
-                                        },
-
-
-                                        extractFreeChannels: function() {
-                                            let results = [];
-                                            this.channelNodes = [];
-                                            let nodes = document.querySelectorAll('.tv-main-con-r-list-left-imga, .tv-main-con-r-list-left-imgb');
-                                            nodes.forEach((node) => {
-                                                let text = node.innerText || "";
-                                                if (text.indexOf('VIP') === -1 && text.indexOf('限免') === -1) {
-                                                    let channelName = text.replace('(VIP)', '').replace('(限免)', '').trim();
-                                                    channelName = channelName.split('\n')[0].trim();
-                                                    this.channelNodes.push(node);
-                                                    results.push({ name: channelName, domIndex: this.channelNodes.length - 1 });
-                                                }
-                                            });
-                                            if (window.TVBridge) window.TVBridge.sendChannelList(JSON.stringify(results));
-                                        },
-
-                                        switchChannel: function(domIndex) {
-                                            if (this.channelNodes[domIndex]) {
-                                                this.channelNodes[domIndex].click();
-                                            }
-                                        },
-
-                                        extractPrograms: function() {
-                                            let results = [];
-                                            let items = document.querySelectorAll('.tv-zhan-list-b-r-item');
-                                            items.forEach(item => {
-                                                let isNow = item.classList.contains('now');
-                                                let timeNode = item.querySelector('div:first-child');
-                                                let titleNode = item.querySelector('.overflow-1');
-                                                if (timeNode && titleNode) {
-                                                    results.push({ time: timeNode.innerText, title: titleNode.innerText, isPlaying: isNow });
-                                                }
-                                            });
-                                            if (window.TVBridge) window.TVBridge.sendProgramList(JSON.stringify(results));
-                                        }
+                                        init: function() { this.setupVideoListener(); this.startAutoOptimizer(); setTimeout(() => this.extractFreeChannels(), 2000); setTimeout(() => this.extractPrograms(), 2000); },
+                                        setupVideoListener: function() { document.addEventListener('playing', function(e) { if(e.target && e.target.tagName === 'VIDEO') { if(window.TVBridge) window.TVBridge.notifyVideoPlaying(); } }, true); },
+                                        startAutoOptimizer: function() { setInterval(() => { let muteBtn = document.querySelector('.voice.off'); if (muteBtn && muteBtn.style.display !== 'none') { muteBtn.click(); } let qualityItems = document.querySelectorAll('.bei-list .item'); qualityItems.forEach(item => { if(item.innerText.includes('1080P') && !item.classList.contains('active')) { item.click(); } }); }, 3000); },
+                                        extractFreeChannels: function() { let results = []; this.channelNodes = []; let nodes = document.querySelectorAll('.tv-main-con-r-list-left-imga, .tv-main-con-r-list-left-imgb'); nodes.forEach((node) => { let text = node.innerText || ""; if (text.indexOf('VIP') === -1 && text.indexOf('限免') === -1) { let channelName = text.replace('(VIP)', '').replace('(限免)', '').trim(); channelName = channelName.split('\n')[0].trim(); this.channelNodes.push(node); results.push({ name: channelName, domIndex: this.channelNodes.length - 1 }); } }); if(window.TVBridge) window.TVBridge.sendChannelList(JSON.stringify(results)); },
+                                        switchChannel: function(domIndex) { if(this.channelNodes[domIndex]) { this.channelNodes[domIndex].click(); } },
+                                        extractPrograms: function() { let results = []; let items = document.querySelectorAll('.tv-zhan-list-b-r-item'); items.forEach(item => { let isNow = item.classList.contains('now'); let timeNode = item.querySelector('div:first-child'); let titleNode = item.querySelector('.overflow-1'); if (timeNode && titleNode) { results.push({ time: timeNode.innerText, title: titleNode.innerText, isPlaying: isNow }); } }); if(window.TVBridge) window.TVBridge.sendProgramList(JSON.stringify(results)); }
                                     };
-
                                     window.LiteWebTV.init();
-                                } catch (e) {
-                                    console.error("LiteWebTV JS Injection Error: " + e.message);
-                                }
+                                } catch (e) { console.error("LiteWebTV JS Injection Error: " + e.message); }
                             })();
                         """.trimIndent()
                         view?.evaluateJavascript(script, null)

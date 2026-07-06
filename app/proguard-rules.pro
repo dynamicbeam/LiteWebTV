@@ -19,3 +19,15 @@
 # If you keep the line number information, uncomment this to
 # hide the original source file name.
 #-renamesourcefileattribute SourceFile
+
+# ---- 腾讯 X5 (TBS) SDK 官方要求的混淆保留规则 ----
+-dontwarn dalvik.**
+-dontwarn com.tencent.smtt.**
+-keep class com.tencent.smtt.** { *; }
+-keep class com.tencent.tbs.** { *; }
+
+# JS bridge：X5 的 addJavascriptInterface 反射调用带 @JavascriptInterface 的方法，
+# release 包开了 minify，务必保留，否则 release 包里 JS 调不到 Android 方法
+-keepclassmembers class com.yukon.litewebtv.engine.TvJsBridge {
+    public *;
+}

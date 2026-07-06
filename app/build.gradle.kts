@@ -48,12 +48,20 @@ android {
     buildFeatures {
         compose = true
     }
+
+    // X5 的 so 库比较大，部分机型在压缩模式下加载内核会失败/变慢，改成不压缩打包
+    packaging {
+        jniLibs {
+            useLegacyPackaging = true
+        }
+    }
 }
 
 dependencies {
     implementation("androidx.core:core-ktx:1.17.0")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.10.0")
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.4")
+    implementation("androidx.lifecycle:lifecycle-runtime-compose:2.8.4")
     implementation("androidx.activity:activity-compose:1.12.4")
 
     // Compose BOM
@@ -69,6 +77,10 @@ dependencies {
 
     // WebView
     implementation("androidx.webkit:webkit:1.11.0")
+
+    // 腾讯 X5 (TBS) 内核，替换系统 WebView，解决老旧机型内核兼容性问题
+    // 走 mavenCentral，settings.gradle.kts 里已经有 mavenCentral()，不用额外配仓库
+    implementation("com.tencent.tbs:tbssdk:44286")
 
     // 以下为测试依赖，它们只在开发期有效，打包 release 时会自动忽略，不会增加软件体积
     testImplementation("junit:junit:4.13.2")

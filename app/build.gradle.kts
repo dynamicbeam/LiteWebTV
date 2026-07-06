@@ -20,7 +20,8 @@ android {
         targetSdk = 36
 
         ndk {
-            abiFilters += listOf("armeabi-v7a")
+            // 同时支持 32 位与 64 位 ABI
+            abiFilters += listOf("armeabi-v7a", "arm64-v8a")
         }
 
         // 【核心修改 1】：更新为 2.0 版本
@@ -83,9 +84,8 @@ dependencies {
     implementation("androidx.tv:tv-foundation:1.0.0-alpha11")
     implementation("androidx.tv:tv-material:1.0.0")
 
-    // 专门兼容老版本系统（Android 5.0 - 7.1）的最后一个稳定大版
-    // 且针对 TV 盒子常用的 32位 ARM 架构进行了精简
-    implementation("org.mozilla.geckoview:geckoview-armeabi-v7a:113.0.20230501151611")
+    // GeckoView: 使用通用 artifact 让 Gradle 拉取所有 ABI 的原生库（支持 32/64 位）
+    implementation("org.mozilla.geckoview:geckoview:113.0.20230501151611")
 
     // 以下为测试依赖，它们只在开发期有效，打包 release 时会自动忽略，不会增加软件体积
     testImplementation("junit:junit:4.13.2")

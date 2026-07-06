@@ -8,9 +8,12 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.viewinterop.AndroidView
+import android.os.Handler
+import android.os.Looper
 import kotlinx.coroutines.flow.SharedFlow
 import org.mozilla.geckoview.AllowOrDeny
 import org.mozilla.geckoview.GeckoResult
@@ -37,6 +40,24 @@ fun LiteWebViewEngine(
 
     val runtime = remember {
         GeckoRuntime.create(context)
+    }
+
+    DisposableEffect(Unit) {
+        onDispose {
+            Handler(Looper.getMainLooper()).post {
+                try {
+                    session?.close()
+                } catch (e: Exception) {
+                    Log.w("LiteWebViewEngine", "关闭 session 时出错", e)
+                }
+                try {
+                    runtime.shutdown()
+                } catch (e: Exception) {
+                    Log.w("LiteWebViewEngine", "关闭 runtime 时出错", e)
+                }
+                session = null
+            }
+        }
     }
 
     LaunchedEffect(session) {
@@ -93,7 +114,9 @@ fun LiteWebViewEngine(
                             success: Boolean
                         ) {
                             if (success) {
-                                onPageLoaded()
+                                Handler(Looper.getMainLooper()).post {
+                                    onPageLoaded()
+                                }
                             }
                         }
                     }
@@ -114,14 +137,19 @@ fun LiteWebViewEngine(
                     }
                 }
 
+                // Open session on runtime first, then bind to the view and load URI.
+                geckoSession.open(runtime)
                 setSession(geckoSession)
                 session = geckoSession
-                geckoSession.open(runtime)
                 geckoSession.loadUri(url)
             }
         },
         update = { view ->
-            session = view.session
+            // Avoid unnecessary state updates to prevent recomposition loops.
+            val vSession = view.session
+            if (session !== vSession) {
+                session = vSession
+            }
         }
     )
 }

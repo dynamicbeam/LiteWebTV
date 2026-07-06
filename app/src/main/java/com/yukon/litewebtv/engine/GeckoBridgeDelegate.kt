@@ -1,6 +1,8 @@
 package com.yukon.litewebtv.engine
 
 import android.util.Log
+import android.os.Handler
+import android.os.Looper
 import org.json.JSONObject
 import org.mozilla.geckoview.GeckoResult
 import org.mozilla.geckoview.WebExtension
@@ -12,6 +14,7 @@ class GeckoBridgeDelegate(
 ) : WebExtension.MessageDelegate {
 
     private var commandPort: WebExtension.Port? = null
+    private val pendingCommands = ArrayList<String>()
 
     override fun onConnect(port: WebExtension.Port) {
         Log.d("GeckoBridge", "WebExtension端口已连接")
@@ -28,6 +31,21 @@ class GeckoBridgeDelegate(
                 }
             }
         })
+        // Drain pending commands (if any)
+        synchronized(pendingCommands) {
+            val it = pendingCommands.iterator()
+            while (it.hasNext()) {
+                val cmd = it.next()
+                try {
+                    val msg = org.json.JSONObject()
+                    msg.put("command", cmd)
+                    port.postMessage(msg)
+                } catch (e: Exception) {
+                    Log.e("GeckoBridge", "发送挂起命令失败", e)
+                }
+                it.remove()
+            }
+        }
     }
 
     override fun onMessage(
@@ -40,15 +58,23 @@ class GeckoBridgeDelegate(
     }
 
     private fun handleMessage(message: Any) {
-        if (message is JSONObject) {
-            val method = message.optString("method")
-            val data = message.optString("data", "")
+        try {
+            val obj = when (message) {
+                is JSONObject -> message
+                is String -> JSONObject(message)
+                else -> null
+            } ?: return
+
+            val method = obj.optString("method")
+            val data = obj.optString("data", "")
             Log.d("GeckoBridge", "收到来自WebExtension的消息: method=$method")
             when (method) {
-                "notifyVideoPlaying" -> onVideoReady()
-                "sendChannelList" -> onChannelListExtracted(data)
-                "sendProgramList" -> onProgramListExtracted(data)
+                "notifyVideoPlaying" -> Handler(Looper.getMainLooper()).post { onVideoReady() }
+                "sendChannelList" -> Handler(Looper.getMainLooper()).post { onChannelListExtracted(data) }
+                "sendProgramList" -> Handler(Looper.getMainLooper()).post { onProgramListExtracted(data) }
             }
+        } catch (e: Exception) {
+            Log.e("GeckoBridge", "处理来自WebExtension的消息失败", e)
         }
     }
 
@@ -63,7 +89,11 @@ class GeckoBridgeDelegate(
                 Log.e("GeckoBridge", "发送JS命令失败", e)
             }
         } else {
-            Log.w("GeckoBridge", "端口未连接，无法发送命令: $command")
+            // Queue the command until the port is connected
+            synchronized(pendingCommands) {
+                pendingCommands.add(command)
+            }
+            Log.w("GeckoBridge", "端口未连接，已入队命令: $command")
         }
     }
 }

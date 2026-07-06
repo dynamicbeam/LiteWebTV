@@ -67,8 +67,9 @@ dependencies {
     implementation("androidx.tv:tv-foundation:1.0.0-alpha11")
     implementation("androidx.tv:tv-material:1.0.0")
 
-    // WebView
-    implementation("androidx.webkit:webkit:1.11.0")
+    // 专门兼容老版本系统（Android 5.0 - 7.1）的最后一个稳定大版
+    // 且针对 TV 盒子常用的 32位 ARM 架构进行了精简
+    implementation("org.mozilla.geckoview:geckoview-armeabi-v7a:143.0.20250929153833")
 
     // 以下为测试依赖，它们只在开发期有效，打包 release 时会自动忽略，不会增加软件体积
     testImplementation("junit:junit:4.13.2")

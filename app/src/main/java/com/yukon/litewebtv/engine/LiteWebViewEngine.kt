@@ -46,9 +46,13 @@ fun LiteWebViewEngine(
                 "resource://android/assets/extensions/tvbridge/",
                 "tvbridge@litewebtv"
             )
-            .accept({ extension ->
+            .accept({ ext ->
+                if (ext == null) {
+                    Log.w("LiteWebViewEngine", "WebExtension为null")
+                    return@accept
+                }
                 s.webExtensionController.setMessageDelegate(
-                    extension,
+                    ext,
                     bridgeDelegate,
                     "tvbridge"
                 )
@@ -81,7 +85,9 @@ fun LiteWebViewEngine(
                         ): GeckoResult<AllowOrDeny>? {
                             return GeckoResult.allow()
                         }
+                    }
 
+                    progressDelegate = object : GeckoSession.ProgressDelegate {
                         override fun onPageStop(
                             session: GeckoSession,
                             success: Boolean
@@ -96,13 +102,13 @@ fun LiteWebViewEngine(
                         override fun onMediaPermissionRequest(
                             session: GeckoSession,
                             uri: String,
-                            video: Array<out GeckoSession.PermissionDelegate.MediaSource>,
-                            audio: Array<out GeckoSession.PermissionDelegate.MediaSource>,
+                            video: Array<out GeckoSession.PermissionDelegate.MediaSource>?,
+                            audio: Array<out GeckoSession.PermissionDelegate.MediaSource>?,
                             callback: GeckoSession.PermissionDelegate.MediaCallback
                         ) {
                             callback.grant(
-                                video.firstOrNull(),
-                                audio.firstOrNull()
+                                video?.firstOrNull(),
+                                audio?.firstOrNull()
                             )
                         }
                     }

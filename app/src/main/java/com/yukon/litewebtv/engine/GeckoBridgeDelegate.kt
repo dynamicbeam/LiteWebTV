@@ -17,7 +17,7 @@ class GeckoBridgeDelegate(
         Log.d("GeckoBridge", "WebExtension端口已连接")
         commandPort = port
         port.setDelegate(object : WebExtension.PortDelegate {
-            override fun onMessage(message: Any, port: WebExtension.Port) {
+            override fun onPortMessage(message: Any, port: WebExtension.Port) {
                 handleMessage(message)
             }
 

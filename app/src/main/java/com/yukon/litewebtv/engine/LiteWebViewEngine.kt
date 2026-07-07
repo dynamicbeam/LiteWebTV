@@ -39,11 +39,9 @@ fun LiteWebViewEngine(
         GeckoBridgeDelegate(onVideoReady, onChannelListExtracted, onProgramListExtracted)
     }
 
+    // 使用单例管理器获取 GeckoRuntime 实例（全应用只创建一次）
     val runtime = remember {
-        val settings = GeckoRuntimeSettings.Builder()
-            .consoleOutput(true)
-            .build()
-        GeckoRuntime.create(context, settings)
+        GeckoRuntimeManager.getInstance(context)
     }
 
     DisposableEffect(Unit) {
@@ -51,15 +49,12 @@ fun LiteWebViewEngine(
             Handler(Looper.getMainLooper()).post {
                 try {
                     session?.close()
+                    Log.d("LiteWebViewEngine", "✓ Session 已关闭")
                 } catch (e: Exception) {
-                    Log.w("LiteWebViewEngine", "关闭 session 时出错", e)
-                }
-                try {
-                    runtime.shutdown()
-                } catch (e: Exception) {
-                    Log.w("LiteWebViewEngine", "关闭 runtime 时出错", e)
+                    Log.w("LiteWebViewEngine", "✗ 关闭 session 时出错", e)
                 }
                 session = null
+                // 注意: 不在这里关闭 GeckoRuntime，由单例管理器管理
             }
         }
     }

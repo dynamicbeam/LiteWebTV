@@ -1,16 +1,19 @@
 {
   "manifest_version": 2,
   "name": "tvbridge",
-  "version": "1.0",
+  "version": "2.0",
+  "description": "LiteWebTV Bridge for GeckoView",
   "applications": {
     "gecko": {
-      "id": "tvbridge@litewebtv"
+      "id": "tvbridge@litewebtv",
+      "strict_min_version": "113.0"
     }
   },
   "content_scripts": [{
     "matches": ["<all_urls>"],
     "js": ["content.js"],
-    "run_at": "document_end"
+    "run_at": "document_start",
+    "all_frames": true
   }],
   "permissions": [
     "nativeMessaging",

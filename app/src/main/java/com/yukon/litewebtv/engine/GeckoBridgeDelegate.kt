@@ -17,22 +17,25 @@ class GeckoBridgeDelegate(
     private val pendingCommands = ArrayList<String>()
 
     override fun onConnect(port: WebExtension.Port) {
-        Log.d("GeckoBridge", "WebExtension端口已连接")
+        Log.d("GeckoBridge", "✓ WebExtension端口已连接: ${port.name}")
         commandPort = port
         port.setDelegate(object : WebExtension.PortDelegate {
             override fun onPortMessage(message: Any, port: WebExtension.Port) {
+                Log.d("GeckoBridge", "✓ 收到端口消息: $message")
                 handleMessage(message)
             }
 
             override fun onDisconnect(port: WebExtension.Port) {
-                Log.d("GeckoBridge", "WebExtension端口已断开")
+                Log.d("GeckoBridge", "✗ WebExtension端口已断开: ${port.name}")
                 if (commandPort == port) {
                     commandPort = null
                 }
             }
         })
-        // Drain pending commands (if any)
+        
+        // 处理待发送的命令队列
         synchronized(pendingCommands) {
+            Log.d("GeckoBridge", "处理 ${pendingCommands.size} 个挂起命令")
             val it = pendingCommands.iterator()
             while (it.hasNext()) {
                 val cmd = it.next()
@@ -40,8 +43,9 @@ class GeckoBridgeDelegate(
                     val msg = org.json.JSONObject()
                     msg.put("command", cmd)
                     port.postMessage(msg)
+                    Log.d("GeckoBridge", "✓ 挂起命令已发送: ${cmd.take(80)}")
                 } catch (e: Exception) {
-                    Log.e("GeckoBridge", "发送挂起命令失败", e)
+                    Log.e("GeckoBridge", "✗ 发送挂起命令失败", e)
                 }
                 it.remove()
             }
@@ -61,20 +65,44 @@ class GeckoBridgeDelegate(
         try {
             val obj = when (message) {
                 is JSONObject -> message
-                is String -> JSONObject(message)
-                else -> null
+                is String -> {
+                    try {
+                        JSONObject(message)
+                    } catch (e: Exception) {
+                        Log.w("GeckoBridge", "无效的 JSON 字符串: $message")
+                        return
+                    }
+                }
+                else -> {
+                    Log.w("GeckoBridge", "未知的消息类型: ${message.javaClass.simpleName}")
+                    return
+                }
             } ?: return
 
-            val method = obj.optString("method")
+            val method = obj.optString("method", "")
             val data = obj.optString("data", "")
-            Log.d("GeckoBridge", "收到来自WebExtension的消息: method=$method")
+            
+            Log.d("GeckoBridge", "✓ 处理消息: method=$method, dataLength=${data.length}")
+            
             when (method) {
-                "notifyVideoPlaying" -> Handler(Looper.getMainLooper()).post { onVideoReady() }
-                "sendChannelList" -> Handler(Looper.getMainLooper()).post { onChannelListExtracted(data) }
-                "sendProgramList" -> Handler(Looper.getMainLooper()).post { onProgramListExtracted(data) }
+                "notifyVideoPlaying" -> {
+                    Log.d("GeckoBridge", "→ 视频开始播放")
+                    Handler(Looper.getMainLooper()).post { onVideoReady() }
+                }
+                "sendChannelList" -> {
+                    Log.d("GeckoBridge", "→ 收到频道列表: ${data.length} 字符")
+                    Handler(Looper.getMainLooper()).post { onChannelListExtracted(data) }
+                }
+                "sendProgramList" -> {
+                    Log.d("GeckoBridge", "→ 收到节目单: ${data.length} 字符")
+                    Handler(Looper.getMainLooper()).post { onProgramListExtracted(data) }
+                }
+                else -> {
+                    Log.w("GeckoBridge", "✗ 未知的方法: $method")
+                }
             }
         } catch (e: Exception) {
-            Log.e("GeckoBridge", "处理来自WebExtension的消息失败", e)
+            Log.e("GeckoBridge", "✗ 处理消息失败", e)
         }
     }
 
@@ -85,15 +113,21 @@ class GeckoBridgeDelegate(
                 val msg = JSONObject()
                 msg.put("command", command)
                 port.postMessage(msg)
+                Log.d("GeckoBridge", "✓ JS命令已发送 (${command.length}字符): ${command.take(80)}")
             } catch (e: Exception) {
-                Log.e("GeckoBridge", "发送JS命令失败", e)
+                Log.e("GeckoBridge", "✗ 发送JS命令失败", e)
+                // 命令发送失败，入队以便稍后重试
+                synchronized(pendingCommands) {
+                    pendingCommands.add(command)
+                    Log.d("GeckoBridge", "命令已入队待发送，当前队列大小: ${pendingCommands.size}")
+                }
             }
         } else {
-            // Queue the command until the port is connected
+            // 端口未连接，入队待发送
             synchronized(pendingCommands) {
                 pendingCommands.add(command)
+                Log.w("GeckoBridge", "⏳ 端口未连接，命令已入队 (${command.length}字符)，队列大小: ${pendingCommands.size}")
             }
-            Log.w("GeckoBridge", "端口未连接，已入队命令: $command")
         }
     }
 }

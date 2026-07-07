@@ -66,6 +66,7 @@ fun LiteWebViewEngine(
 
     LaunchedEffect(session) {
         val s = session ?: return@LaunchedEffect
+        Log.d("LiteWebViewEngine", "→ 开始加载WebExtension")
         runtime.webExtensionController
             .ensureBuiltIn(
                 "resource://android/assets/extensions/tvbridge/",
@@ -73,16 +74,19 @@ fun LiteWebViewEngine(
             )
             .accept({ ext ->
                 if (ext == null) {
-                    Log.w("LiteWebViewEngine", "WebExtension为null")
+                    Log.e("LiteWebViewEngine", "✗ WebExtension为null - 加载失败！")
                     return@accept
                 }
+                Log.d("LiteWebViewEngine", "✓ WebExtension已加载: ${ext.id}")
+                
                 s.webExtensionController.setMessageDelegate(
                     ext,
                     bridgeDelegate,
                     "tvbridge"
                 )
+                Log.d("LiteWebViewEngine", "✓ 消息委托已设置")
             }, { exception ->
-                Log.e("LiteWebViewEngine", "WebExtension安装失败", exception)
+                Log.e("LiteWebViewEngine", "✗ WebExtension安装失败: ${exception?.message}", exception)
             })
     }
 
@@ -117,6 +121,8 @@ fun LiteWebViewEngine(
                             session: GeckoSession,
                             success: Boolean
                         ) {
+                            val status = if (success) "✓ 成功" else "✗ 失败"
+                            Log.d("LiteWebViewEngine", "$status 页面加载完成")
                             if (success) {
                                 Handler(Looper.getMainLooper()).post {
                                     onPageLoaded()

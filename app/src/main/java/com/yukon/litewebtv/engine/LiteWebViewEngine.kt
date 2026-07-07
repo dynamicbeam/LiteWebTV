@@ -131,6 +131,10 @@ fun LiteWebViewEngine(
                             session: GeckoSession,
                             request: GeckoSession.NavigationDelegate.LoadRequest
                         ): GeckoResult<AllowOrDeny>? {
+                            val url = request.uri?.lowercase() ?: return GeckoResult.allow()
+                            if (url.endsWith(".png") || url.endsWith(".jpg") || url.endsWith(".svg") || url.contains("trace.min.js")) {
+                                return GeckoResult.deny()
+                            }
                             return GeckoResult.allow()
                         }
                     }

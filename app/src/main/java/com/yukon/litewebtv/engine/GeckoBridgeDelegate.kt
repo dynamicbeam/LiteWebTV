@@ -21,8 +21,8 @@ class GeckoBridgeDelegate(
         commandPort = port
         port.setDelegate(object : WebExtension.PortDelegate {
             override fun onPortMessage(message: Any, port: WebExtension.Port) {
-                Log.d("GeckoBridge", "✓ 收到端口消息: $message")
-                handleMessage(message)
+                // content.js 现用 sendNativeMessage，不会走这里
+                Log.d("GeckoBridge", "✓ 收到端口消息(忽略): $message")
             }
 
             override fun onDisconnect(port: WebExtension.Port) {
@@ -33,7 +33,6 @@ class GeckoBridgeDelegate(
             }
         })
         
-        // 处理待发送的命令队列
         synchronized(pendingCommands) {
             Log.d("GeckoBridge", "处理 ${pendingCommands.size} 个挂起命令")
             val it = pendingCommands.iterator()
@@ -116,14 +115,12 @@ class GeckoBridgeDelegate(
                 Log.d("GeckoBridge", "✓ JS命令已发送 (${command.length}字符): ${command.take(80)}")
             } catch (e: Exception) {
                 Log.e("GeckoBridge", "✗ 发送JS命令失败", e)
-                // 命令发送失败，入队以便稍后重试
                 synchronized(pendingCommands) {
                     pendingCommands.add(command)
                     Log.d("GeckoBridge", "命令已入队待发送，当前队列大小: ${pendingCommands.size}")
                 }
             }
         } else {
-            // 端口未连接，入队待发送
             synchronized(pendingCommands) {
                 pendingCommands.add(command)
                 Log.w("GeckoBridge", "⏳ 端口未连接，命令已入队 (${command.length}字符)，队列大小: ${pendingCommands.size}")

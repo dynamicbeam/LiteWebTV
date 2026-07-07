@@ -1,152 +1,150 @@
 (function() {
+  console.log('[CS] start');
+
   var port = null;
   var connected = false;
-  var connectionAttempts = 0;
-  var maxConnectionAttempts = 3;
 
-  function injectBridge() {
-    var inject = document.createElement('script');
-    inject.textContent = `
-      (function() {
-        // 以全局方式注册 TVBridge，确保在 GeckoView 中可访问
-        if (!window.TVBridge) {
-          window.TVBridge = {
-            notifyVideoPlaying: function() {
-              console.log('[TVBridge] Sending: notifyVideoPlaying');
-              window.postMessage({type: '__TVBRIDGE__', method: 'notifyVideoPlaying'}, '*');
-            },
-            sendChannelList: function(data) {
-              console.log('[TVBridge] Sending: sendChannelList with ' + data.length + ' channels');
-              window.postMessage({type: '__TVBRIDGE__', method: 'sendChannelList', data: data}, '*');
-            },
-            sendProgramList: function(data) {
-              console.log('[TVBridge] Sending: sendProgramList with ' + data.length + ' programs');
-              window.postMessage({type: '__TVBRIDGE__', method: 'sendProgramList', data: data}, '*');
-            }
-          };
-          console.log('[TVBridge] Bridge object initialized in page context');
-        }
-      })();
-    `;
-    document.documentElement.appendChild(inject);
-  }
+  // TVBridge
+  window.TVBridge = window.TVBridge || {
+    notifyVideoPlaying: function() { window.postMessage({type:'__TVBRIDGE__',method:'notifyVideoPlaying'},'*'); },
+    sendChannelList: function(d) { window.postMessage({type:'__TVBRIDGE__',method:'sendChannelList',data:d},'*'); },
+    sendProgramList: function(d) { window.postMessage({type:'__TVBRIDGE__',method:'sendProgramList',data:d},'*'); },
+    sendDiagnosticInfo: function(d) { window.postMessage({type:'__TVBRIDGE__',method:'sendDiagnosticInfo',data:d},'*'); }
+  };
+  console.log('[CS] bridge ready');
 
-  function injectStylesAndLiteTV() {
-    var script = document.createElement('script');
-    script.textContent = `
-      (function() {
-        try {
-          // Suppress NotAllowedError from video.play() (GeckoView autoplay policy)
-          var _origPlay = HTMLMediaElement.prototype.play;
-          HTMLMediaElement.prototype.play = function() {
-            try {
-              var _p = _origPlay.call(this);
-              if (_p && typeof _p.catch === 'function') {
-                _p.catch(function(e) {
-                  if (e.name === 'NotAllowedError') return;
-                  throw e;
-                });
-              }
-              return _p;
-            } catch(e) {
-              if (e.name === 'NotAllowedError') return Promise.resolve();
-              throw e;
-            }
-          };
-          var css = "::-webkit-scrollbar { display: none !important; width: 0 !important; height: 0 !important; } " +
-                    ".header-fixed, .max-footer, .tv-main-con-r, .tv-zhan, .public { display: none !important; opacity: 0 !important; pointer-events: none !important; } " +
-                    "html, body, #app, .comPadding, .tv-home, .tv-home-list, .tv, .tv-main, .tv-main-con, .tv-main-con-l { margin: 0 !important; padding: 0 !important; width: 100vw !important; height: 100vh !important; max-width: 100vw !important; overflow: hidden !important; background-color: #000 !important; } " +
-                    ".tv-main-con-l-vid, .c-container, .video-con { position: fixed !important; top: 0 !important; left: 0 !important; width: 100vw !important; height: 100vh !important; z-index: 2147483647 !important; margin: 0 !important; padding: 0 !important; background-color: #000 !important; } " +
-                    "video { width: 100vw !important; height: 100vh !important; object-fit: contain !important; }";
-          var style = document.createElement('style'); style.type = 'text/css'; style.innerHTML = css; document.head.appendChild(style);
-          window.LiteWebTV = {
-            channelNodes: [],
-            init: function() { this.setupVideoListener(); this.startAutoOptimizer(); setTimeout(() => this.extractFreeChannels(), 2000); setTimeout(() => this.extractPrograms(), 2000); },
-            setupVideoListener: function() { document.addEventListener('playing', function(e) { if(e.target && e.target.tagName === 'VIDEO') { if(window.TVBridge) window.TVBridge.notifyVideoPlaying(); } }, true); },
-            startAutoOptimizer: function() { setInterval(() => { let muteBtn = document.querySelector('.voice.off'); if (muteBtn && muteBtn.style.display !== 'none') { muteBtn.click(); } let qualityItems = document.querySelectorAll('.bei-list .item'); qualityItems.forEach(item => { if(item.innerText.includes('1080P') && !item.classList.contains('active')) { item.click(); } }); }, 3000); },
-            extractFreeChannels: function() { let results = []; this.channelNodes = []; let nodes = document.querySelectorAll('.tv-main-con-r-list-left-imga, .tv-main-con-r-list-left-imgb'); nodes.forEach((node) => { let text = node.innerText || ''; if (text.indexOf('VIP') === -1 && text.indexOf('限免') === -1) { let channelName = text.replace('(VIP)', '').replace('(限免)', '').trim(); channelName = channelName.split('\\n')[0].trim(); this.channelNodes.push(node); results.push({ name: channelName, domIndex: this.channelNodes.length - 1 }); } }); if(window.TVBridge) window.TVBridge.sendChannelList(JSON.stringify(results)); },
-            switchChannel: function(domIndex) { if(this.channelNodes[domIndex]) { this.channelNodes[domIndex].click(); } },
-            extractPrograms: function() { let results = []; let items = document.querySelectorAll('.tv-zhan-list-b-r-item'); items.forEach(item => { let isNow = item.classList.contains('now'); let timeNode = item.querySelector('div:first-child'); let titleNode = item.querySelector('.overflow-1'); if (timeNode && titleNode) { results.push({ time: timeNode.innerText, title: titleNode.innerText, isPlaying: isNow }); } }); if(window.TVBridge) window.TVBridge.sendProgramList(JSON.stringify(results)); }
-          };
-          window.LiteWebTV.init();
-        } catch (e) { console.error('LiteWebTV JS Injection Error: ' + e.message); }
-      })();
-    `;
-    document.documentElement.appendChild(script);
-  }
-
-  function ensurePort() {
-    if (!connected && connectionAttempts < maxConnectionAttempts) {
+  // LiteWebTV
+  window.LiteWebTV = {
+    channelNodes: [],
+    run: function() {
+      console.log('[CS] run');
+      // CSS
       try {
-        connectionAttempts++;
-        console.log('[ContentScript] Attempting to connect native port (attempt ' + connectionAttempts + ')');
-        port = browser.runtime.connectNative('tvbridge');
-        connected = true;
-        console.log('[ContentScript] Native port connected successfully');
+        var css = "::-webkit-scrollbar { display: none !important; width: 0 !important; height: 0 !important; } " +
+                  ".header-fixed, .max-footer, .tv-main-con-r, .tv-zhan, .public { display: none !important; opacity: 0 !important; pointer-events: none !important; } " +
+                  "html, body, #app, .comPadding, .tv-home, .tv-home-list, .tv, .tv-main, .tv-main-con, .tv-main-con-l { margin: 0 !important; padding: 0 !important; width: 100vw !important; height: 100vh !important; max-width: 100vw !important; overflow: hidden !important; background-color: #000 !important; } " +
+                  ".tv-main-con-l-vid, .c-container, .video-con { position: fixed !important; top: 0 !important; left: 0 !important; width: 100vw !important; height: 100vh !important; z-index: 2147483647 !important; margin: 0 !important; padding: 0 !important; background-color: #000 !important; } " +
+                  "video { width: 100vw !important; height: 100vh !important; object-fit: contain !important; }";
+        var s = document.createElement('style');
+        s.type = 'text/css';
+        s.innerHTML = css;
+        (document.head || document.documentElement).appendChild(s);
+        console.log('[CS] css ok');
+      } catch(e) { console.error('[CS] css fail:', e.message); }
 
-        port.onMessage.addListener(function(msg) {
-          console.log('[ContentScript] Received message from native:', msg);
-          if (msg && msg.command) {
-            try {
-              // 使用 eval 在主页面上下文中执行命令（比脚本标签更可靠）
-              console.log('[ContentScript] Executing command: ' + msg.command.substring(0, 100));
-              window.eval(msg.command);
-            } catch (e) {
-              console.error('[ContentScript] Error executing command:', e);
-            }
+      // play override
+      try {
+        var _op = HTMLMediaElement.prototype.play;
+        HTMLMediaElement.prototype.play = function() {
+          try { var p = _op.call(this); if(p&&typeof p.catch==='function'){p.catch(function(e){if(e.name==='NotAllowedError')return;throw e;});} return p; }
+          catch(e) { if(e.name==='NotAllowedError')return Promise.resolve(); throw e; }
+        };
+        console.log('[CS] play ok');
+      } catch(e) { console.error('[CS] play fail:', e.message); }
+
+      // video listener
+      try {
+        document.addEventListener('playing', function(e) {
+          if(e.target && e.target.tagName==='VIDEO') window.TVBridge && window.TVBridge.notifyVideoPlaying();
+        }, true);
+        console.log('[CS] listener ok');
+      } catch(e) { console.error('[CS] listener fail:', e.message); }
+
+      console.log('[CS] run done');
+    },
+    extract: function() {
+      console.log('[CS] extract');
+      // channels
+      try {
+        var cr = []; this.channelNodes = [];
+        var cn = document.querySelectorAll('.tv-main-con-r-list-left-imga, .tv-main-con-r-list-left-imgb');
+        console.log('[CS] chan nodes:', cn.length, '| a:', document.querySelectorAll('a').length, '| li:', document.querySelectorAll('li').length);
+        cn.forEach(function(n) {
+          var t = n.innerText||'';
+          if(t.indexOf('VIP')===-1&&t.indexOf('限免')===-1) {
+            var c = t.replace('(VIP)','').replace('(限免)','').trim().split('\n')[0].trim();
+            if(c.length>0){this.channelNodes.push(n);cr.push({name:c,domIndex:this.channelNodes.length-1});}
           }
+        }.bind(this));
+        console.log('[CS] chan:', cr.length);
+        window.TVBridge && window.TVBridge.sendChannelList(JSON.stringify(cr));
+      } catch(e) { console.error('[CS] chan err:', e.message); }
+      // programs
+      try {
+        var pr = [];
+        var pi = document.querySelectorAll('.tv-zhan-list-b-r-item');
+        console.log('[CS] prog nodes:', pi.length);
+        pi.forEach(function(n) {
+          var now = n.classList.contains('now');
+          var tm = n.querySelector('div:first-child');
+          var tl = n.querySelector('.overflow-1');
+          if(tm&&tl) pr.push({time:tm.innerText,title:tl.innerText,isPlaying:now});
         });
-
-        port.onDisconnect.addListener(function() {
-          console.log('[ContentScript] Native port disconnected');
-          connected = false;
-          port = null;
-        });
-      } catch(e) {
-        console.error('[ContentScript] Failed to connect native port:', e);
-        connected = false;
-      }
-    } else if (!connected) {
-      console.warn('[ContentScript] Max connection attempts reached');
+        console.log('[CS] prog:', pr.length);
+        window.TVBridge && window.TVBridge.sendProgramList(JSON.stringify(pr));
+      } catch(e) { console.error('[CS] prog err:', e.message); }
+      // diagnostic
+      try {
+        var dbg = {
+          title: document.title,
+          bodyCls: document.body ? document.body.className : '',
+          a: document.querySelectorAll('a').length,
+          li: document.querySelectorAll('li').length,
+          div: document.querySelectorAll('div').length,
+          texts: Array.from(document.querySelectorAll('a')).slice(0,8).map(function(x){return(x.innerText||'').trim()}).filter(function(x){return x.length>0}),
+          classes: Array.from(document.querySelectorAll('[class]')).slice(0,5).map(function(x){return x.className.substring(0,60)})
+        };
+        window.TVBridge && window.TVBridge.sendDiagnosticInfo(JSON.stringify(dbg));
+        console.log('[CS] diag sent');
+      } catch(e) { console.error('[CS] diag err:', e.message); }
     }
+  };
+  console.log('[CS] lite ready');
+
+  // port
+  function connect() {
+    if(connected) return;
+    try {
+      console.log('[CS] port connecting');
+      port = browser.runtime.connectNative('tvbridge');
+      connected = true;
+      console.log('[CS] port ok');
+      port.onMessage.addListener(function(msg) {
+        console.log('[CS] cmd:', msg&&msg.command);
+        if(msg&&msg.command) {
+          if(!window.LiteWebTV) { console.warn('[CS] LiteWebTV missing, reinit'); window.LiteWebTV={channelNodes:[],extractFreeChannels:function(){},switchChannel:function(){},extractPrograms:function(){}}; }
+          try { window.eval(msg.command); } catch(e) { console.error('[CS] eval:',e); }
+        }
+      });
+      port.onDisconnect.addListener(function(){connected=false;port=null;console.log('[CS] port disc');});
+    } catch(e) { console.error('[CS] port fail:',e); }
   }
+  connect();
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',function(){connect();});
 
-  injectBridge();
-  injectStylesAndLiteTV();
-  ensurePort();
-
-  // 监听页面脚本通过 postMessage 发送的消息
-  window.addEventListener('message', function(event) {
-    if (event.data && event.data.type === '__TVBRIDGE__') {
-      console.log('[ContentScript] Received postMessage:', event.data.method);
-      
-      if (connected && port) {
-        try {
-          port.postMessage(event.data);
-        } catch (e) {
-          console.error('[ContentScript] Error posting message to port:', e);
-        }
-      } else {
-        // 如果端口未连接，尝试直接发送原生消息
-        try {
-          console.log('[ContentScript] Port not connected, attempting sendNativeMessage');
-          browser.runtime.sendNativeMessage('tvbridge', event.data);
-        } catch(e) {
-          console.error('[ContentScript] TVBridge sendNativeMessage failed:', e);
-        }
+  // postMessage → port
+  window.addEventListener('message', function(ev) {
+    if(ev.data&&ev.data.type==='__TVBRIDGE__') {
+      console.log('[CS] msg:', ev.data.method, 'port:', !!port, 'conn:', connected);
+      if(connected&&port) {
+        try { port.postMessage(ev.data); console.log('[CS] port.send ok'); }
+        catch(e) { console.error('[CS] port.send fail:', e.message); }
       }
     }
   });
 
-  // 确保 DOM 加载后端口已准备好
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', function() {
-      console.log('[ContentScript] DOMContentLoaded triggered, ensuring port');
-      ensurePort();
-    });
-  } else {
-    // DOM 已经加载过了
-    console.log('[ContentScript] DOM already loaded, ensuring port');
-    ensurePort();
+  // 立即执行 run (注入CSS/覆写play/设置监听器)
+  window.LiteWebTV.run();
+
+  // DOM 就绪后提取数据
+  function onReady() {
+    console.log('[CS] DOMContentLoaded');
+    window.LiteWebTV.extract();
+    setTimeout(function(){window.LiteWebTV&&window.LiteWebTV.extract();}, 3000);
+    setTimeout(function(){window.LiteWebTV&&window.LiteWebTV.extract();}, 8000);
   }
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', onReady);
+  else onReady();
+
+  console.log('[CS] end');
 })();

@@ -8,7 +8,7 @@
   window.TVBridge = window.TVBridge || {
     notifyVideoPlaying: function() { window.postMessage({type:'__TVBRIDGE__',method:'notifyVideoPlaying'},'*'); },
     sendChannelList: function(d) { window.postMessage({type:'__TVBRIDGE__',method:'sendChannelList',data:d},'*'); },
-    sendProgramList: function(d) { window.postMessage({type:'__TVBRIDGE__',method:'sendProgramList',data:d},'*'); },
+    sendProgramList: function(d) { window.postMessage({type:'__TVBRIDGE__',method:'sendProgramList',data:d},'*'); }
   };
   console.log('[CS] bridge ready');
 
@@ -42,12 +42,11 @@
           console.log('[CS] listener ok');
         } catch(e) { console.error('[CS] listener fail:', e.message); }
       },
-      extract: function() {
-        console.log('[CS] extract');
+      extractFreeChannels: function() {
+        console.log('[CS] extractFreeChannels');
         try {
           var cr=[]; this.channelNodes=[];
           var cn=document.querySelectorAll('.tv-main-con-r-list-left-imga, .tv-main-con-r-list-left-imgb');
-          console.log('[CS] chan nodes:',cn.length,'| a:',document.querySelectorAll('a').length,'| li:',document.querySelectorAll('li').length);
           cn.forEach(function(n){
             var t=n.innerText||'';
             if(t.indexOf('VIP')===-1&&t.indexOf('限免')===-1){
@@ -56,13 +55,14 @@
             }
           }.bind(this));
           console.log('[CS] chan:',cr.length);
-          // 只发送非空数据，防止覆盖已有数据
           if(cr.length>0) window.TVBridge&&window.TVBridge.sendChannelList(JSON.stringify(cr));
         } catch(e) { console.error('[CS] chan err:',e.message); }
+      },
+      extractPrograms: function() {
+        console.log('[CS] extractPrograms');
         try {
           var pr=[];
           var pi=document.querySelectorAll('.tv-zhan-list-b-r-item');
-          console.log('[CS] prog nodes:',pi.length);
           pi.forEach(function(n){
             var now=n.classList.contains('now');
             var tm=n.querySelector('div:first-child');
@@ -72,16 +72,17 @@
           console.log('[CS] prog:',pr.length);
           if(pr.length>0) window.TVBridge&&window.TVBridge.sendProgramList(JSON.stringify(pr));
         } catch(e) { console.error('[CS] prog err:',e.message); }
+      },
+      switchChannel: function(domIndex) {
+        console.log('[CS] switchChannel:', domIndex);
         try {
-          var dbg={
-            title:document.title,
-            bodyCls:document.body?document.body.className:'',
-            a:document.querySelectorAll('a').length,
-            li:document.querySelectorAll('li').length,
-            div:document.querySelectorAll('div').length
-          };
-          console.log('[CS] diag sent');
-        } catch(e) { console.error('[CS] diag err:',e.message); }
+          if(this.channelNodes[domIndex]) { this.channelNodes[domIndex].click(); }
+        } catch(e) { console.error('[CS] switch err:',e.message); }
+      },
+      extract: function() {
+        console.log('[CS] extract');
+        this.extractFreeChannels();
+        this.extractPrograms();
       }
     };
   }

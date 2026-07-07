@@ -21,12 +21,12 @@ object GeckoRuntimeManager {
     }
 
     private fun createNewRuntime(context: Context): GeckoRuntime {
-        Log.d("GeckoRuntimeManager", "→ 创建新的 GeckoRuntime 实例")
-        val settings = GeckoRuntimeSettings.Builder()
-            .consoleOutput(true)
-            .build()
-        return GeckoRuntime.create(context, settings).also {
-            Log.d("GeckoRuntimeManager", "✓ GeckoRuntime 实例已创建")
+        // Log.d("GeckoRuntimeManager", "→ 创建新的 GeckoRuntime 实例")
+//        val settings = GeckoRuntimeSettings.Builder()
+//            .consoleOutput(true)
+//            .build()
+        return GeckoRuntime.create(context).also {
+            // Log.d("GeckoRuntimeManager", "✓ GeckoRuntime 实例已创建")
         }
     }
 
@@ -34,9 +34,9 @@ object GeckoRuntimeManager {
         synchronized(this) {
             runtimeInstance?.let {
                 try {
-                    Log.d("GeckoRuntimeManager", "→ 关闭 GeckoRuntime")
+                    // Log.d("GeckoRuntimeManager", "→ 关闭 GeckoRuntime")
                     it.shutdown()
-                    Log.d("GeckoRuntimeManager", "✓ GeckoRuntime 已关闭")
+                    // Log.d("GeckoRuntimeManager", "✓ GeckoRuntime 已关闭")
                 } catch (e: Exception) {
                     Log.e("GeckoRuntimeManager", "✗ 关闭 GeckoRuntime 失败", e)
                 }

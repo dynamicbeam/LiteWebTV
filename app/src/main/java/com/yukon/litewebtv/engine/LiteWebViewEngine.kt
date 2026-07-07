@@ -52,7 +52,7 @@ fun LiteWebViewEngine(
             Handler(Looper.getMainLooper()).post {
                 try {
                     session?.close()
-                    Log.d("LiteWebViewEngine", "✓ Session 已关闭")
+                    // Log.d("LiteWebViewEngine", "✓ Session 已关闭")
                 } catch (e: Exception) {
                     Log.w("LiteWebViewEngine", "✗ 关闭 session 时出错", e)
                 }
@@ -64,7 +64,7 @@ fun LiteWebViewEngine(
 
     LaunchedEffect(session) {
         val s = session ?: return@LaunchedEffect
-        Log.d("LiteWebViewEngine", "→ 开始加载WebExtension")
+        // Log.d("LiteWebViewEngine", "→ 开始加载WebExtension")
         runtime.webExtensionController
             .ensureBuiltIn(
                 "resource://android/assets/extensions/tvbridge/",
@@ -75,14 +75,14 @@ fun LiteWebViewEngine(
                     Log.e("LiteWebViewEngine", "✗ WebExtension为null - 加载失败！")
                     return@accept
                 }
-                Log.d("LiteWebViewEngine", "✓ WebExtension已加载: ${ext.id}")
+                // Log.d("LiteWebViewEngine", "✓ WebExtension已加载: ${ext.id}")
                 
                 s.webExtensionController.setMessageDelegate(
                     ext,
                     bridgeDelegate,
                     "tvbridge"
                 )
-                Log.d("LiteWebViewEngine", "✓ 消息委托已设置")
+                // Log.d("LiteWebViewEngine", "✓ 消息委托已设置")
             }, { exception ->
                 Log.e("LiteWebViewEngine", "✗ WebExtension安装失败: ${exception?.message}", exception)
             })
@@ -90,12 +90,12 @@ fun LiteWebViewEngine(
 
     LaunchedEffect(Unit) {
         jsCommandFlow.collect { command ->
-            Log.d("LiteWebViewEngine", "执行注入指令: $command")
+            // Log.d("LiteWebViewEngine", "执行注入指令: $command")
             bridgeDelegate.executeJsCommand(command)
         }
     }
 
-    // 后台停止播放，前台恢复
+    // 后台卸载页面（收回音频权限），前台重载
     val lifecycle = LocalLifecycleOwner.current.lifecycle
     DisposableEffect(lifecycle) {
         val observer = LifecycleEventObserver { _, event ->
@@ -103,8 +103,12 @@ fun LiteWebViewEngine(
             if (s == null) return@LifecycleEventObserver
             when (event) {
                 Lifecycle.Event.ON_PAUSE -> {
-                    Log.d("LiteWebViewEngine", "→ 应用进入后台，停止媒体播放")
-                    s.stop()
+                    // Log.d("LiteWebViewEngine", "→ 后台，卸载页面")
+                    s.loadUri("about:blank")
+                }
+                Lifecycle.Event.ON_RESUME -> {
+                    // Log.d("LiteWebViewEngine", "→ 前台，重载页面")
+                    s.loadUri(url)
                 }
                 else -> {}
             }
@@ -145,7 +149,7 @@ fun LiteWebViewEngine(
                             success: Boolean
                         ) {
                             val status = if (success) "✓ 成功" else "✗ 失败"
-                            Log.d("LiteWebViewEngine", "$status 页面加载完成")
+                            // Log.d("LiteWebViewEngine", "$status 页面加载完成")
                             if (success) {
                                 Handler(Looper.getMainLooper()).post {
                                     onPageLoaded()
@@ -171,7 +175,7 @@ fun LiteWebViewEngine(
                             session: GeckoSession,
                             perm: GeckoSession.PermissionDelegate.ContentPermission
                         ): GeckoResult<Int>? {
-                            Log.d("LiteWebViewEngine", "Content permission: type=${perm.permission} uri=${perm.uri}")
+                            // Log.d("LiteWebViewEngine", "Content permission: type=${perm.permission} uri=${perm.uri}")
                             return GeckoResult.fromValue(GeckoSession.PermissionDelegate.ContentPermission.VALUE_ALLOW)
                         }
                     }

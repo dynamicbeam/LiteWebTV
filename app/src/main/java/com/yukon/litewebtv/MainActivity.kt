@@ -163,7 +163,7 @@ class MainActivity : ComponentActivity() {
                         modifier = Modifier.fillMaxSize(),
                         url = "https://www.yangshipin.cn/tv/home",
                         jsCommandFlow = viewModel.jsCommand,
-                        onPageLoaded = { Log.d("LiteWebTV", "引擎已就绪") },
+                        onPageLoaded = { /* Log.d("LiteWebTV", "引擎已就绪") */ },
                         onVideoReady = { viewModel.setVideoReady() },
                         onChannelListExtracted = { viewModel.parseChannelList(it) },
                         onProgramListExtracted = { viewModel.parseProgramList(it) }

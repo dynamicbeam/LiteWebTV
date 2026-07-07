@@ -19,6 +19,7 @@ import org.mozilla.geckoview.AllowOrDeny
 import org.mozilla.geckoview.GeckoResult
 import org.mozilla.geckoview.GeckoRuntime
 import org.mozilla.geckoview.GeckoSession
+import org.mozilla.geckoview.GeckoRuntimeSettings
 import org.mozilla.geckoview.GeckoView
 
 @Composable
@@ -39,7 +40,10 @@ fun LiteWebViewEngine(
     }
 
     val runtime = remember {
-        GeckoRuntime.create(context)
+        val settings = GeckoRuntimeSettings.Builder()
+            .consoleOutput(true)
+            .build()
+        GeckoRuntime.create(context, settings)
     }
 
     DisposableEffect(Unit) {

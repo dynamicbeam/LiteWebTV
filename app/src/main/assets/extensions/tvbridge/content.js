@@ -34,66 +34,68 @@
   // ===== LiteWebTV (exactly matching old script's method signatures) =====
   var port = null;
   var connected = false;
+  function defineLiteWebTV() {
+    window.LiteWebTV = {
+        channelNodes: [],
+        init: function() {
+          console.log('[CS] init');
+          this.setupVideoListener();
+          setTimeout(function() { window.LiteWebTV.extractFreeChannels(); }, 2000);
+          setTimeout(function() { window.LiteWebTV.extractPrograms(); }, 2000);
+        },
+        setupVideoListener: function() {
+          try {
+            document.addEventListener('playing', function(e) {
+              if (e.target && e.target.tagName === 'VIDEO') {
+                if (window.TVBridge) window.TVBridge.notifyVideoPlaying();
+              }
+            }, true);
+            console.log('[CS] listener ok');
+          } catch(e) { console.error('[CS] listener fail:', e.message); }
+        },
 
-  window.LiteWebTV = {
-    channelNodes: [],
-    init: function() {
-      console.log('[CS] init');
-      this.setupVideoListener();
-      setTimeout(function() { window.LiteWebTV.extractFreeChannels(); }, 2000);
-      setTimeout(function() { window.LiteWebTV.extractPrograms(); }, 2000);
-    },
-    setupVideoListener: function() {
-      try {
-        document.addEventListener('playing', function(e) {
-          if (e.target && e.target.tagName === 'VIDEO') {
-            if (window.TVBridge) window.TVBridge.notifyVideoPlaying();
-          }
-        }, true);
-        console.log('[CS] listener ok');
-      } catch(e) { console.error('[CS] listener fail:', e.message); }
-    },
-
-    extractFreeChannels: function() {
-      console.log('[CS] extractFreeChannels');
-      try {
-        var results = []; this.channelNodes = [];
-        var nodes = document.querySelectorAll('.tv-main-con-r-list-left-imga, .tv-main-con-r-list-left-imgb');
-        nodes.forEach(function(node) {
-          var text = node.innerText || "";
-          if (text.indexOf('VIP') === -1 && text.indexOf('限免') === -1) {
-            var channelName = text.replace('(VIP)', '').replace('(限免)', '').trim();
-            channelName = channelName.split('\n')[0].trim();
-            this.channelNodes.push(node);
-            results.push({ name: channelName, domIndex: this.channelNodes.length - 1 });
-          }
-        }.bind(this));
-        console.log('[CS] chan:', results.length, ' | channelNodes:', this.channelNodes.length);
-        if (results.length > 0 && window.TVBridge) window.TVBridge.sendChannelList(JSON.stringify(results));
-      } catch(e) { console.error('[CS] chan err:', e.message); }
-    },
-    switchChannel: function(domIndex) {
-      console.log('[CS] switchChannel:', domIndex);
-      try {
-        if (this.channelNodes[domIndex]) this.channelNodes[domIndex].click();
-      } catch(e) { console.error('[CS] switch err:', e.message); }
-    },
-    extractPrograms: function() {
-      console.log('[CS] extractPrograms');
-      try {
-        var results = [];
-        var items = document.querySelectorAll('.tv-zhan-list-b-r-item');
-        items.forEach(function(item) {
-          var isNow = item.classList.contains('now');
-          var timeNode = item.querySelector('div:first-child');
-          var titleNode = item.querySelector('.overflow-1');
-          if (timeNode && titleNode) results.push({ time: timeNode.innerText, title: titleNode.innerText, isPlaying: isNow });
-        });
-        console.log('[CS] prog:', results.length);
-        if (results.length > 0 && window.TVBridge) window.TVBridge.sendProgramList(JSON.stringify(results));
-      } catch(e) { console.error('[CS] prog err:', e.message); }
-    }
-  };
+        extractFreeChannels: function() {
+          console.log('[CS] extractFreeChannels');
+          try {
+            var results = []; this.channelNodes = [];
+            var nodes = document.querySelectorAll('.tv-main-con-r-list-left-imga, .tv-main-con-r-list-left-imgb');
+            nodes.forEach(function(node) {
+              var text = node.innerText || "";
+              if (text.indexOf('VIP') === -1 && text.indexOf('限免') === -1) {
+                var channelName = text.replace('(VIP)', '').replace('(限免)', '').trim();
+                channelName = channelName.split('\n')[0].trim();
+                this.channelNodes.push(node);
+                results.push({ name: channelName, domIndex: this.channelNodes.length - 1 });
+              }
+            }.bind(this));
+            console.log('[CS] chan:', results.length, ' | channelNodes:', this.channelNodes.length);
+            if (results.length > 0 && window.TVBridge) window.TVBridge.sendChannelList(JSON.stringify(results));
+          } catch(e) { console.error('[CS] chan err:', e.message); }
+        },
+        switchChannel: function(domIndex) {
+          console.log('[CS] switchChannel:', domIndex);
+          try {
+            if (this.channelNodes[domIndex]) this.channelNodes[domIndex].click();
+          } catch(e) { console.error('[CS] switch err:', e.message); }
+        },
+        extractPrograms: function() {
+          console.log('[CS] extractPrograms');
+          try {
+            var results = [];
+            var items = document.querySelectorAll('.tv-zhan-list-b-r-item');
+            items.forEach(function(item) {
+              var isNow = item.classList.contains('now');
+              var timeNode = item.querySelector('div:first-child');
+              var titleNode = item.querySelector('.overflow-1');
+              if (timeNode && titleNode) results.push({ time: timeNode.innerText, title: titleNode.innerText, isPlaying: isNow });
+            });
+            console.log('[CS] prog:', results.length);
+            if (results.length > 0 && window.TVBridge) window.TVBridge.sendProgramList(JSON.stringify(results));
+          } catch(e) { console.error('[CS] prog err:', e.message); }
+        }
+      };
+  }
+  defineLiteWebTV()
   console.log('[CS] lite ready');
 
   // ===== port (GeckoView native messaging) =====

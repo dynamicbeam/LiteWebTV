@@ -19,6 +19,7 @@ import org.mozilla.geckoview.AllowOrDeny
 import org.mozilla.geckoview.GeckoResult
 import org.mozilla.geckoview.GeckoRuntime
 import org.mozilla.geckoview.GeckoSession
+import org.mozilla.geckoview.GeckoSessionSettings
 import org.mozilla.geckoview.GeckoRuntimeSettings
 import org.mozilla.geckoview.GeckoView
 
@@ -101,7 +102,10 @@ fun LiteWebViewEngine(
                     ViewGroup.LayoutParams.MATCH_PARENT
                 )
 
-                val geckoSession = GeckoSession().apply {
+                val sessionSettings = GeckoSessionSettings.Builder()
+                    .userAgentOverride("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+                    .build()
+                val geckoSession = GeckoSession(sessionSettings).apply {
                     navigationDelegate = object : GeckoSession.NavigationDelegate {
                         override fun onLoadRequest(
                             session: GeckoSession,

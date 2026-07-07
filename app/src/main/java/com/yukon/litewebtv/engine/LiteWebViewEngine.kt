@@ -14,6 +14,9 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.viewinterop.AndroidView
 import android.os.Handler
 import android.os.Looper
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import kotlinx.coroutines.flow.SharedFlow
 import org.mozilla.geckoview.AllowOrDeny
 import org.mozilla.geckoview.GeckoResult
@@ -90,6 +93,24 @@ fun LiteWebViewEngine(
             Log.d("LiteWebViewEngine", "执行注入指令: $command")
             bridgeDelegate.executeJsCommand(command)
         }
+    }
+
+    // 后台停止播放，前台恢复
+    val lifecycle = LocalLifecycleOwner.current.lifecycle
+    DisposableEffect(lifecycle) {
+        val observer = LifecycleEventObserver { _, event ->
+            val s = session
+            if (s == null) return@LifecycleEventObserver
+            when (event) {
+                Lifecycle.Event.ON_PAUSE -> {
+                    Log.d("LiteWebViewEngine", "→ 应用进入后台，停止媒体播放")
+                    s.stop()
+                }
+                else -> {}
+            }
+        }
+        lifecycle.addObserver(observer)
+        onDispose { lifecycle.removeObserver(observer) }
     }
 
     AndroidView(

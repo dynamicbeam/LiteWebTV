@@ -20,7 +20,6 @@ import org.mozilla.geckoview.GeckoResult
 import org.mozilla.geckoview.GeckoRuntime
 import org.mozilla.geckoview.GeckoSession
 import org.mozilla.geckoview.GeckoSessionSettings
-import org.mozilla.geckoview.GeckoRuntimeSettings
 import org.mozilla.geckoview.GeckoView
 
 @Composable
@@ -142,6 +141,13 @@ fun LiteWebViewEngine(
                                 video?.firstOrNull(),
                                 audio?.firstOrNull()
                             )
+                        }
+                        override fun onContentPermissionRequest(
+                            session: GeckoSession,
+                            perm: GeckoSession.PermissionDelegate.ContentPermission
+                        ): GeckoResult<Int>? {
+                            Log.d("LiteWebViewEngine", "Content permission: type=${perm.permission} uri=${perm.uri}")
+                            return GeckoResult.fromValue(GeckoSession.PermissionDelegate.ContentPermission.VALUE_ALLOW)
                         }
                     }
                 }

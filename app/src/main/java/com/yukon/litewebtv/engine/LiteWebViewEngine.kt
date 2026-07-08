@@ -52,8 +52,15 @@ fun LiteWebViewEngine(
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
             when (event) {
-                Lifecycle.Event.ON_PAUSE -> session?.setActive(false)
-                Lifecycle.Event.ON_RESUME -> session?.setActive(true)
+                Lifecycle.Event.ON_PAUSE -> {
+//                    Log.d("LiteWebViewEngine","emo=====")
+                    //TODO回调有 但是并没有操作 需要用到js暂停了
+                    session?.setActive(false)
+                }
+                Lifecycle.Event.ON_RESUME -> {
+//                    Log.d("LiteWebViewEngine","ok==========")
+                    session?.setActive(true)
+                }
                 else -> {}
             }
         }

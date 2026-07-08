@@ -11,7 +11,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import android.os.Handler
 import android.os.Looper
 import kotlinx.coroutines.flow.SharedFlow
@@ -44,17 +47,26 @@ fun LiteWebViewEngine(
         GeckoRuntimeManager.getInstance(context)
     }
 
-    DisposableEffect(Unit) {
+    val lifecycleOwner = LocalLifecycleOwner.current
+
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            when (event) {
+                Lifecycle.Event.ON_PAUSE -> session?.setActive(false)
+                Lifecycle.Event.ON_RESUME -> session?.setActive(true)
+                else -> {}
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
         onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
             Handler(Looper.getMainLooper()).post {
                 try {
                     session?.close()
-                    // Log.d("LiteWebViewEngine", "✓ Session 已关闭")
                 } catch (e: Exception) {
                     Log.w("LiteWebViewEngine", "✗ 关闭 session 时出错", e)
                 }
                 session = null
-                // 注意: 不在这里关闭 GeckoRuntime，由单例管理器管理
             }
         }
     }

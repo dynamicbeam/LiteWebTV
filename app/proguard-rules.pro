@@ -20,6 +20,9 @@
 # hide the original source file name.
 #-renamesourcefileattribute SourceFile
 
+# 关闭 R8 优化（优化会内联/合并方法，破坏 GeckoView JNI 的 vtable 调用）
+-dontoptimize
+
 # GeckoView 传递依赖引入的 SnakeYAML 引用了 Android 上不存在的 java.beans 包
 -dontwarn java.beans.**
 -dontwarn org.yaml.snakeyaml.**

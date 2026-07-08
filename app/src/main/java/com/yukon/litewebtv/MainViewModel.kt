@@ -51,7 +51,6 @@ class MainViewModel : ViewModel() {
     private var pendingOsdShow = false
 
     private var loadingTimeoutJob: Job? = null
-    private var sidebarJob: Job? = null
 
     private fun startLoadingTimeout() {
         loadingTimeoutJob?.cancel()
@@ -119,23 +118,9 @@ class MainViewModel : ViewModel() {
         }
     }
 
-    private fun resetSidebarTimer() {
-        sidebarJob?.cancel()
-        sidebarJob = viewModelScope.launch {
-            delay(8000)
-            _showChannelSidebar.value = false
-            _showProgramSidebar.value = false
-        }
-    }
-
     fun toggleChannelSidebar(show: Boolean) {
         _showChannelSidebar.value = show
-        if (show) {
-            _showProgramSidebar.value = false
-            resetSidebarTimer()
-        } else {
-            sidebarJob?.cancel()
-        }
+        if (show) _showProgramSidebar.value = false
     }
 
     fun toggleProgramSidebar(show: Boolean) {
@@ -143,9 +128,6 @@ class MainViewModel : ViewModel() {
         if (show) {
             _showChannelSidebar.value = false
             _jsCommand.tryEmit("window.LiteWebTV.extractPrograms();")
-            resetSidebarTimer()
-        } else {
-            sidebarJob?.cancel()
         }
     }
 

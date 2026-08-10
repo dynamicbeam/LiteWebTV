@@ -1,6 +1,8 @@
 package com.yukon.litewebtv
 
 import android.util.Log
+import android.widget.Toast
+import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.Job
@@ -144,6 +146,38 @@ class MainViewModel : ViewModel() {
         if (currentListIndex >= list.size) currentListIndex = 0
 
         switchToChannel(list[currentListIndex], currentListIndex)
+    }
+
+
+    // 遥控器数字换台输入缓冲
+    private var digitBuffer = ""
+    private var digitJob: Job? = null
+
+    fun onDigitPressed(digit: Int) {
+        val list = _channels.value
+        if (list.isEmpty()) return
+
+        digitBuffer += digit
+        _showOsd.value = true
+        _currentProgramTitle.value = digitBuffer
+
+        digitJob?.cancel()
+        digitJob = viewModelScope.launch {
+            delay(1500)
+            val channelNum = digitBuffer.toIntOrNull()
+            if (channelNum == null || channelNum <= 0) return@launch
+
+            val channel = _channels.value.firstOrNull {
+                it.domIndex + 1 == channelNum
+            } ?: run {
+                _currentProgramTitle.value = "频道 $channelNum 不存在"
+                delay(2000)
+                _showOsd.value =false
+                return@launch
+            }
+            _showOsd.value =false
+            switchToChannel(channel)
+        }
     }
 
     fun switchToChannel(channel: Channel, listIndex: Int? = null) {

@@ -68,7 +68,7 @@ fun OsdTitle(
             contentAlignment = Alignment.TopCenter
         ) {
             Text(
-                text = "正在播放：$programTitle",
+                text = programTitle,
                 fontSize = 26.sp,
                 fontWeight = FontWeight.Bold,
                 color = TextPrimary,

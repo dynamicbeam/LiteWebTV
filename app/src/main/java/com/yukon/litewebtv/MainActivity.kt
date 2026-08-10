@@ -105,6 +105,15 @@ class MainActivity : ComponentActivity() {
                                             true
                                         } else false
                                     }
+                                    in KeyEvent.KEYCODE_0..KeyEvent.KEYCODE_9, in KeyEvent.KEYCODE_NUMPAD_0..KeyEvent.KEYCODE_NUMPAD_9 -> {
+                                        val digit = if (keyCode <= KeyEvent.KEYCODE_9) {
+                                            keyCode - KeyEvent.KEYCODE_0
+                                        } else {
+                                            keyCode - KeyEvent.KEYCODE_NUMPAD_0
+                                        }
+                                        viewModel.onDigitPressed(digit)
+                                        true
+                                    }
                                     KeyEvent.KEYCODE_BACK -> {
                                         if (showChannelSidebar) { viewModel.toggleChannelSidebar(false); true }
                                         else if (showProgramSidebar) { viewModel.toggleProgramSidebar(false); true }

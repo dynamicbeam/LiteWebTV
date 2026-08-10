@@ -184,7 +184,7 @@ fun ChannelSidebar(
             listState.scrollToItem(scrollIndex)
             delay(350)
             try { targetFocusRequester.requestFocus() } catch (e: Exception) {}
-            try { sidebarFocusRequester.requestFocus() } catch (e: Exception) {}
+//            try { sidebarFocusRequester.requestFocus() } catch (e: Exception) {}
         }
     }
 
@@ -226,6 +226,7 @@ fun ChannelSidebar(
                                 .then(if (index == targetIndex) Modifier.focusRequester(targetFocusRequester) else Modifier)
                                 .onFocusChanged { isFocused = it.isFocused }
                                 .clickable { onChannelSelected(channel) }
+                                .focusable()
                                 .background(if (isFocused) FocusBorderLight else Color.Transparent, RoundedCornerShape(8.dp))
                                 .border(
                                     width = if (isFocused) 2.dp else 0.dp,

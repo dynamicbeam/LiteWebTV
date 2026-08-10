@@ -12,7 +12,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import org.json.JSONArray
 
-data class Channel(val name: String, val domIndex: Int)
+data class Channel(val name: String, val domIndex: Int,val fullName: String)
 data class Program(val time: String, val title: String, val isPlaying: Boolean)
 
 class MainViewModel : ViewModel() {
@@ -78,7 +78,9 @@ class MainViewModel : ViewModel() {
             val array = JSONArray(jsonString)
             for (i in 0 until array.length()) {
                 val obj = array.getJSONObject(i)
-                list.add(Channel(obj.getString("name"), obj.getInt("domIndex")))
+                val name = obj.getString("name")
+                val fullName = (obj.getInt("domIndex")+1).toString()+"."+name
+                list.add(Channel(name, obj.getInt("domIndex"), fullName))
             }
             _channels.value = list
             if (list.isNotEmpty() && _currentChannelName.value == "加载中...") {

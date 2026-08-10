@@ -235,7 +235,7 @@ fun ChannelSidebar(
                                 .padding(16.dp)
                         ) {
                             Text(
-                                text = channel.name,
+                                text = channel.fullName,
                                 color = if (isFocused || index == targetIndex) TextPrimary else TextSecondary,
                                 fontSize = 20.sp,
                                 fontWeight = if (isFocused || index == targetIndex) FontWeight.Bold else FontWeight.Normal

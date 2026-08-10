@@ -1,5 +1,6 @@
 package com.yukon.litewebtv.ui.components
 
+import android.view.KeyEvent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -28,6 +29,9 @@ import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shadow
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -178,8 +182,11 @@ fun ChannelSidebar(
         channels.indexOfFirst { it.name == currentChannelName }.coerceAtLeast(0)
     }
 
-    LaunchedEffect(isVisible) {
+    var focusedIndex by remember { mutableStateOf(0) }
+
+    LaunchedEffect(isVisible,targetIndex,channels.size) {
         if (isVisible && channels.isNotEmpty()) {
+            focusedIndex = targetIndex
             val scrollIndex = (targetIndex - 3).coerceAtLeast(0)
             listState.scrollToItem(scrollIndex)
             delay(350)
@@ -187,6 +194,14 @@ fun ChannelSidebar(
 //            try { sidebarFocusRequester.requestFocus() } catch (e: Exception) {}
         }
     }
+
+    LaunchedEffect(isVisible,focusedIndex,channels.size) {
+        if (isVisible && focusedIndex in channels.indices) {
+            listState.scrollToItem(focusedIndex)
+            try { targetFocusRequester.requestFocus() } catch (e: Exception) {}
+        }
+    }
+
 
     AnimatedVisibility(
         visible = isVisible,
@@ -212,7 +227,25 @@ fun ChannelSidebar(
 
                 LazyColumn(
                     state = listState,
-                    modifier = Modifier.weight(1f).fillMaxWidth(),
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxWidth()
+                        .onPreviewKeyEvent { event ->
+                            if (event.type != KeyEventType.KeyDown || channels.isEmpty()) {
+                                false
+                            } else {
+                                focusedIndex = when (event.nativeKeyEvent.keyCode) {
+                                    KeyEvent.KEYCODE_DPAD_UP -> {
+                                        if (focusedIndex == 0) channels.lastIndex else focusedIndex - 1
+                                    }
+                                    KeyEvent.KEYCODE_DPAD_DOWN -> {
+                                        (focusedIndex + 1) % channels.size
+                                    }
+                                    else -> return@onPreviewKeyEvent false
+                                }
+                                true
+                            }
+                        },
                     contentPadding = PaddingValues(16.dp)
                 ) {
                     // 【性能优化 2】：强制加入唯一 key，阻止 Compose 在滑动时进行全局重组计算
@@ -223,8 +256,11 @@ fun ChannelSidebar(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .padding(vertical = 8.dp)
-                                .then(if (index == targetIndex) Modifier.focusRequester(targetFocusRequester) else Modifier)
-                                .onFocusChanged { isFocused = it.isFocused }
+                                .then(if (index == focusedIndex) Modifier.focusRequester(targetFocusRequester) else Modifier)
+                                .onFocusChanged {
+                                    isFocused = it.isFocused
+                                    if(it.isFocused) focusedIndex = index
+                                }
                                 .clickable { onChannelSelected(channel) }
                                 .focusable()
                                 .background(if (isFocused) FocusBorderLight else Color.Transparent, RoundedCornerShape(8.dp))

@@ -8,8 +8,8 @@ on:
         required: true
         type: string
   push:
-    tags:
-      - 'v*'
+    branches:
+      - master
 
 permissions:
   contents: write
@@ -55,13 +55,13 @@ jobs:
       - name: Upload APK as Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: LiteWebTV-${{ github.event_name == 'workflow_dispatch' && inputs.version || github.ref_name }}
+          name: LiteWebTV-${{ github.event_name == 'workflow_dispatch' && inputs.version || 'v1.0' }}
           path: app/build/outputs/apk/release/app-release.apk
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ github.event_name == 'workflow_dispatch' && inputs.version || github.ref_name }}
+          tag_name: ${{ github.event_name == 'workflow_dispatch' && inputs.version || 'v1.0' }}
           files: app/build/outputs/apk/release/app-release.apk
           generate_release_notes: true
-          name: Release ${{ github.event_name == 'workflow_dispatch' && inputs.version || github.ref_name }}
+          name: Release ${{ github.event_name == 'workflow_dispatch' && inputs.version || 'v1.0' }}

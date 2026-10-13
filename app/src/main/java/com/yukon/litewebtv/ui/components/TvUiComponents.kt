@@ -183,22 +183,25 @@ fun ChannelSidebar(
     }
 
     var focusedIndex by remember { mutableStateOf(0) }
+    var initialized by remember { mutableStateOf(false) }
 
-    LaunchedEffect(isVisible,targetIndex,channels.size) {
-        if (isVisible && channels.isNotEmpty()) {
+    LaunchedEffect(isVisible, channels.size) {
+        if (isVisible && channels.isNotEmpty() && !initialized) {
             focusedIndex = targetIndex
             val scrollIndex = (targetIndex - 3).coerceAtLeast(0)
             listState.scrollToItem(scrollIndex)
-            delay(350)
+            delay(250)
             try { targetFocusRequester.requestFocus() } catch (e: Exception) {}
-//            try { sidebarFocusRequester.requestFocus() } catch (e: Exception) {}
+            initialized = true
+        }
+        if (!isVisible) {
+            initialized = false
         }
     }
 
-    LaunchedEffect(isVisible,focusedIndex,channels.size) {
-        if (isVisible && focusedIndex in channels.indices) {
+    LaunchedEffect(focusedIndex) {
+        if (isVisible && initialized && focusedIndex in channels.indices) {
             listState.scrollToItem(focusedIndex)
-            try { targetFocusRequester.requestFocus() } catch (e: Exception) {}
         }
     }
 
